@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ambientes Virtuais
+venv/
+env/
+.venv/
+
+# IDEs / macOS
+.vscode/
+.idea/
+.DS_Store
+
+# Logs e arquivos temporários
+*.log
+*.tmp
+*.bak
