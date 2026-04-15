@@ -13,6 +13,7 @@ from parsing import (
     packet_matches_friendly_filters,
     summarize_packet,
 )
+from stats import StatsState, update_event_stats, update_packet_stats
 from tracking import TrackerState, process_packet_for_events
 
 
@@ -31,6 +32,7 @@ class CaptureContext:
     writer: Optional[Any] = None
     packet_logger: Optional[Any] = None
     tracker_state: TrackerState = field(default_factory=TrackerState)
+    stats_state: StatsState = field(default_factory=StatsState)
 
 
 def require_scapy() -> tuple[Any, Any, Any, type[Exception]]:
@@ -83,17 +85,22 @@ def handle_packet(packet: Any, context: CaptureContext) -> None:
     summary = summarize_packet(packet)
     print(f"{source_label(context)} {summary}")
 
+    record = build_log_record(
+        packet,
+        context.source_type,
+        context.source_name,
+        context.packet_count,
+        summary,
+    )
+    update_packet_stats(context.stats_state, record)
+
     if context.packet_logger is not None:
-        record = build_log_record(
-            packet,
-            context.source_type,
-            context.source_name,
-            context.packet_count,
-            summary,
-        )
         context.packet_logger.write_packet(record)
 
-    for event in process_packet_for_events(packet, context.tracker_state):
+    events = process_packet_for_events(packet, context.tracker_state)
+    update_event_stats(context.stats_state, events)
+
+    for event in events:
         print(event)
 
 

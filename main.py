@@ -17,6 +17,7 @@ from logging_output import (
     validate_log_path,
 )
 from parsing import FriendlyFilters
+from stats import format_stats_report
 
 
 SUPPORTED_PROTOCOLS = {"arp", "ip", "icmp", "tcp", "udp"}
@@ -193,6 +194,7 @@ def print_summary(context: CaptureContext) -> None:
     print(f"  fonte: {context.source_name}")
     print(f"  filtro configurado: {context.bpf_filter or '(sem filtro)'}")
     print(f"  pacotes processados: {context.packet_count}")
+    print(format_stats_report(context.stats_state, context.packet_count))
 
 
 def main(argv: Optional[list[str]] = None) -> int:
