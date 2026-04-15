@@ -23,6 +23,7 @@ from typing import Any, Optional
 
 SUPPORTED_PROTOCOLS = {"arp", "ip", "icmp", "tcp", "udp"}
 MAC_RE = re.compile(r"^[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}$")
+IP_PROTOCOL_NAMES = {1: "ICMP", 6: "TCP", 17: "UDP"}
 
 
 @dataclass
@@ -273,11 +274,191 @@ def packet_matches_protocol(packet: Any, protocol: str) -> bool:
     return protocol_layers[protocol] in packet
 
 
+def extract_packet_info(packet: Any) -> dict[str, Any]:
+    """Extrai os dados L2/L3 suportados nesta fase para um dicionário simples."""
+
+    info: dict[str, Any] = {}
+    ethernet_info = extract_ethernet_info(packet)
+    arp_info = extract_arp_info(packet)
+    ipv4_info = extract_ipv4_info(packet)
+
+    if ethernet_info:
+        info["ethernet"] = ethernet_info
+    if arp_info:
+        info["arp"] = arp_info
+    if ipv4_info:
+        info["ipv4"] = ipv4_info
+
+    return info
+
+
+def extract_ethernet_info(packet: Any) -> dict[str, Any]:
+    """Extrai MACs e EtherType quando a camada Ethernet está presente."""
+
+    from scapy.layers.l2 import Ether
+
+    if Ether not in packet:
+        return {}
+
+    ethernet = packet[Ether]
+    return {
+        "src_mac": getattr(ethernet, "src", None),
+        "dst_mac": getattr(ethernet, "dst", None),
+        "ethertype": format_ethertype(getattr(ethernet, "type", None)),
+    }
+
+
+def extract_arp_info(packet: Any) -> dict[str, Any]:
+    """Extrai a informação essencial de um pacote ARP."""
+
+    from scapy.layers.l2 import ARP
+
+    if ARP not in packet:
+        return {}
+
+    arp = packet[ARP]
+    return {
+        "operation": format_arp_operation(getattr(arp, "op", None)),
+        "src_ip": getattr(arp, "psrc", None),
+        "dst_ip": getattr(arp, "pdst", None),
+        "src_mac": getattr(arp, "hwsrc", None),
+        "dst_mac": getattr(arp, "hwdst", None),
+    }
+
+
+def extract_ipv4_info(packet: Any) -> dict[str, Any]:
+    """Extrai a informação IPv4 de alto nível, sem detalhar a camada L4."""
+
+    from scapy.layers.inet import IP
+
+    if IP not in packet:
+        return {}
+
+    ipv4 = packet[IP]
+    proto = getattr(ipv4, "proto", None)
+    return {
+        "src_ip": getattr(ipv4, "src", None),
+        "dst_ip": getattr(ipv4, "dst", None),
+        "ttl": getattr(ipv4, "ttl", None),
+        "length": getattr(ipv4, "len", None),
+        "protocol": IP_PROTOCOL_NAMES.get(
+            proto, str(proto) if proto is not None else None
+        ),
+    }
+
+
+def format_ethertype(value: Any) -> Optional[str]:
+    """Formata o EtherType de forma curta e reconhecível."""
+
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return f"0x{value:04x}"
+    return str(value)
+
+
+def format_arp_operation(value: Any) -> Optional[str]:
+    """Traduz operações ARP comuns para nomes simples."""
+
+    operations = {
+        1: "request",
+        2: "reply",
+        "who-has": "request",
+        "is-at": "reply",
+    }
+    if value is None:
+        return None
+    return operations.get(value, str(value))
+
+
+def format_direction(src: Any, dst: Any, src_label: str, dst_label: str) -> Optional[str]:
+    """Formata origem e destino sem inventar valores em falta."""
+
+    if src and dst:
+        return f"{src} -> {dst}"
+    if src:
+        return f"{src_label}={src}"
+    if dst:
+        return f"{dst_label}={dst}"
+    return None
+
+
+def source_label(context: CaptureContext) -> str:
+    """Constrói o prefixo que identifica a origem da captura."""
+
+    source = (
+        context.source_name
+        if context.source_type == "live"
+        else Path(context.source_name).name
+    )
+    return f"[{context.source_type}:{source}]"
+
+
+def summarize_packet(packet: Any) -> str:
+    """Cria uma linha curta com o resumo suportado do pacote."""
+
+    try:
+        info = extract_packet_info(packet)
+    except Exception:
+        return "Outro | pacote incompleto ou não suportado nesta fase"
+
+    if "arp" in info:
+        return summarize_arp(info["arp"])
+    if "ipv4" in info:
+        return summarize_ipv4(info["ipv4"])
+
+    ethernet_info = info.get("ethernet", {})
+    ethertype = ethernet_info.get("ethertype")
+    if ethertype:
+        return f"Outro | ethertype={ethertype} | tipo não suportado nesta fase"
+    return "Outro | tipo não suportado nesta fase"
+
+
+def summarize_arp(info: dict[str, Any]) -> str:
+    """Cria um resumo textual curto para ARP."""
+
+    parts = ["ARP"]
+    if info.get("operation"):
+        parts.append(info["operation"])
+
+    ip_flow = format_direction(
+        info.get("src_ip"), info.get("dst_ip"), "ip_src", "ip_dst"
+    )
+    if ip_flow:
+        parts.append(ip_flow)
+
+    mac_flow = format_direction(
+        info.get("src_mac"), info.get("dst_mac"), "mac_src", "mac_dst"
+    )
+    if mac_flow:
+        parts.append(mac_flow)
+
+    return " | ".join(parts)
+
+
+def summarize_ipv4(info: dict[str, Any]) -> str:
+    """Cria um resumo textual curto para IPv4."""
+
+    parts = ["IPv4"]
+    ip_flow = format_direction(
+        info.get("src_ip"), info.get("dst_ip"), "ip_src", "ip_dst"
+    )
+    if ip_flow:
+        parts.append(ip_flow)
+    if info.get("ttl") is not None:
+        parts.append(f"ttl={info['ttl']}")
+    if info.get("protocol"):
+        parts.append(f"proto={info['protocol']}")
+    if info.get("length") is not None:
+        parts.append(f"{info['length']} bytes")
+    return " | ".join(parts)
+
+
 def handle_packet(packet: Any, context: CaptureContext) -> None:
     """Processa um pacote capturado ou carregado.
 
-    Nesta etapa o processamento é intencionalmente mínimo: incrementa o contador,
-    escreve o pacote em PCAP se aplicável e imprime uma linha curta de teste.
+    Nesta etapa o processamento identifica apenas Ethernet, ARP e IPv4, sem
+    entrar ainda no detalhe de TCP, UDP ou ICMP.
     """
 
     context.packet_count += 1
@@ -285,13 +466,7 @@ def handle_packet(packet: Any, context: CaptureContext) -> None:
     if context.writer is not None:
         context.writer.write(packet)
 
-    action = "capturado" if context.source_type == "live" else "carregado"
-    source = (
-        context.source_name
-        if context.source_type == "live"
-        else Path(context.source_name).name
-    )
-    print(f"[{context.source_type}:{source}] pacote #{context.packet_count} {action}")
+    print(f"{source_label(context)} {summarize_packet(packet)}")
 
 
 def run_live_capture(args: argparse.Namespace, bpf_filter: str) -> CaptureContext:
