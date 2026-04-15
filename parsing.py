@@ -9,6 +9,7 @@ from typing import Any, Optional
 
 IP_PROTOCOL_NAMES = {1: "ICMP", 6: "TCP", 17: "UDP"}
 TCP_FLAG_BITS = {"FIN": 0x01, "SYN": 0x02, "RST": 0x04, "ACK": 0x10}
+ETHERTYPE_NAMES = {0x0800: "IPv4", 0x0806: "ARP"}
 
 
 @dataclass(frozen=True)
@@ -227,7 +228,8 @@ def format_ethertype(value: Any) -> Optional[str]:
     if value is None:
         return None
     if isinstance(value, int):
-        return f"0x{value:04x}"
+        name = ETHERTYPE_NAMES.get(value)
+        return f"{name} (0x{value:04x})" if name else f"0x{value:04x}"
     return str(value)
 
 
