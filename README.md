@@ -52,20 +52,34 @@ python3 -m pip install scapy
 Em modo live, normalmente são necessários privilégios de administrador para capturar pacotes:
 
 ```bash
-sudo python3 main.py -i eth0
+sudo .venv/bin/python main.py -i en0
 ```
 
-No macOS, os nomes de interfaces costumam ser `en0`, `en1`, etc. Em Linux, são comuns `eth0`, `ens33`, `wlan0`, entre outros.
+No macOS, a interface ativa típica é `en0`. Se o projeto estiver numa virtualenv, é preferível chamar explicitamente o Python da virtualenv quando se usa `sudo`, para garantir que o Scapy correto é usado:
+
+```bash
+sudo .venv/bin/python main.py -i en0
+```
+
+Em Linux/CORE, são comuns nomes como `eth0`, `ens33` ou `wlan0`; nesses ambientes, um exemplo típico seria `sudo python3 main.py -i eth0`.
 
 ## Como executar
 
 ### Captura live sem filtros
 
 ```bash
-sudo python3 main.py -i eth0
+sudo .venv/bin/python main.py -i en0
 ```
 
 ### Leitura offline de PCAP
+
+Se ainda não existir um PCAP, pode ser criado primeiro com:
+
+```bash
+sudo .venv/bin/python main.py -i en0 -c 30 --write-pcap captura.pcap
+```
+
+Depois, a leitura offline é feita com:
 
 ```bash
 python3 main.py -r captura.pcap

@@ -1,6 +1,6 @@
 # Checklist de Demonstração
 
-Checklist prática para preparar e executar a demonstração do packet sniffer.
+Checklist prática para preparar e executar a demonstração do packet sniffer. O fluxo abaixo está ajustado ao ambiente real de teste em macOS, onde a interface usada foi `en0`.
 
 ## Antes da demonstração
 
@@ -15,7 +15,19 @@ Checklist prática para preparar e executar a demonstração do packet sniffer.
   - `TEST_PLAN.md`
   - `EXAMPLES.md`
 - [ ] Confirmar que Python 3 está instalado.
-- [ ] Confirmar que Scapy está instalado:
+- [ ] Criar a virtualenv, se ainda não existir:
+
+```bash
+python3 -m venv .venv
+```
+
+- [ ] Ativar a virtualenv:
+
+```bash
+source .venv/bin/activate
+```
+
+- [ ] Confirmar que Scapy está instalado na virtualenv:
 
 ```bash
 python3 -m pip show scapy
@@ -33,28 +45,33 @@ python3 -m pip install scapy
 python3 main.py --help
 ```
 
-- [ ] Preparar um ficheiro PCAP de teste, por exemplo `captura.pcap`.
-- [ ] Identificar a interface a usar na demonstração:
-
-```bash
-ip addr
-```
-
-ou, em macOS:
+- [ ] Identificar a interface a usar na demonstração. Em macOS, a interface ativa mais provável é `en0`:
 
 ```bash
 ifconfig
 ```
 
-## Comandos prontos
-
-Captura live curta:
+- [ ] Se for preciso testar modo offline e ainda não existir `captura.pcap`, gerar primeiro um PCAP:
 
 ```bash
-sudo python3 main.py -i eth0 -c 20
+sudo .venv/bin/python main.py -i en0 -c 30 --write-pcap captura.pcap
 ```
 
-Leitura offline:
+- [ ] Confirmar que o PCAP gerado pode ser lido:
+
+```bash
+python3 main.py -r captura.pcap -c 10
+```
+
+## Comandos prontos para macOS
+
+Captura live curta em `en0`:
+
+```bash
+sudo .venv/bin/python main.py -i en0 -c 20
+```
+
+Leitura offline do PCAP gerado:
 
 ```bash
 python3 main.py -r captura.pcap -c 20
@@ -63,25 +80,25 @@ python3 main.py -r captura.pcap -c 20
 Filtro ICMP:
 
 ```bash
-sudo python3 main.py -i eth0 --protocol icmp
+sudo .venv/bin/python main.py -i en0 --protocol icmp
 ```
 
 Filtro TCP com BPF:
 
 ```bash
-sudo python3 main.py -i eth0 --bpf "tcp port 80"
+sudo .venv/bin/python main.py -i en0 --bpf "tcp port 80"
 ```
 
 Logging CSV:
 
 ```bash
-sudo python3 main.py -i eth0 -c 50 --log-file demo.csv --log-format csv
+sudo .venv/bin/python main.py -i en0 -c 50 --log-file demo.csv --log-format csv
 ```
 
 Guardar captura crua:
 
 ```bash
-sudo python3 main.py -i eth0 -c 50 --write-pcap demo.pcap
+sudo .venv/bin/python main.py -i en0 -c 50 --write-pcap demo.pcap
 ```
 
 ## Demonstração no CORE
@@ -89,7 +106,7 @@ sudo python3 main.py -i eth0 -c 50 --write-pcap demo.pcap
 - [ ] Abrir a topologia no CORE.
 - [ ] Iniciar a sessão.
 - [ ] Abrir terminal no nó onde o sniffer vai correr.
-- [ ] Confirmar a interface do nó com `ip addr`.
+- [ ] Confirmar a interface do nó com `ip addr`. Em CORE/Linux, `eth0` é um exemplo comum.
 - [ ] Correr o sniffer:
 
 ```bash
@@ -127,19 +144,19 @@ sudo python3 main.py -i eth0 -c 20 --log-file core.csv --log-format csv
 
 - [ ] Abrir ou mostrar o ficheiro `core.csv`.
 
-## Demonstração numa interface real
+## Demonstração numa interface real macOS
 
-- [ ] Identificar a interface real ativa.
+- [ ] Confirmar que a interface ativa é `en0` ou ajustar os comandos se for outra.
 - [ ] Usar uma captura curta com timeout:
 
 ```bash
-sudo python3 main.py -i en0 --timeout 30
+sudo .venv/bin/python main.py -i en0 --timeout 30
 ```
 
 - [ ] Usar filtro para reduzir ruído:
 
 ```bash
-sudo python3 main.py -i en0 --protocol icmp
+sudo .venv/bin/python main.py -i en0 --protocol icmp
 ```
 
 - [ ] Gerar tráfego ICMP:
@@ -151,19 +168,19 @@ ping 8.8.8.8
 - [ ] Demonstrar BPF:
 
 ```bash
-sudo python3 main.py -i en0 --bpf "tcp port 80"
+sudo .venv/bin/python main.py -i en0 --bpf "tcp port 80"
 ```
 
-- [ ] Demonstrar escrita para PCAP:
+- [ ] Demonstrar escrita para PCAP. Se `captura.pcap` ainda não existir, este é o passo que o cria:
 
 ```bash
-sudo python3 main.py -i en0 -c 30 --write-pcap real.pcap
+sudo .venv/bin/python main.py -i en0 -c 30 --write-pcap captura.pcap
 ```
 
-- [ ] Ler o PCAP gerado:
+- [ ] Ler o PCAP gerado em modo offline:
 
 ```bash
-python3 main.py -r real.pcap -c 10
+python3 main.py -r captura.pcap -c 10
 ```
 
 ## Pontos principais a explicar
@@ -182,6 +199,7 @@ python3 main.py -r real.pcap -c 10
 ## Plano B
 
 - Se a captura live falhar por permissões, executar com `sudo`.
+- Em macOS, quando se usa `sudo`, preferir `sudo .venv/bin/python main.py ...` para garantir que é usado o Scapy instalado na virtualenv.
 - Se não houver tráfego suficiente, gerar `ping`, `curl` ou `nc`.
 - Se a interface real estiver ruidosa, usar `--protocol icmp`, `--protocol tcp` ou BPF.
-- Se o ambiente live estiver instável, demonstrar com um ficheiro `.pcap` preparado.
+- Se ainda não houver PCAP para modo offline, gerar `captura.pcap` com `--write-pcap`.

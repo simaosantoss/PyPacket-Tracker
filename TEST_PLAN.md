@@ -4,9 +4,12 @@ Este plano cobre os testes principais para validar o packet sniffer antes da dem
 
 Assume-se:
 
-- interface de exemplo: `eth0`
-- ficheiro PCAP de exemplo: `captura.pcap`
+- interface macOS usada na demonstração real: `en0`
+- interface genérica em Linux/CORE: `eth0`
+- ficheiro PCAP de exemplo: `captura.pcap`, gerado durante os testes se ainda não existir
 - IPs de exemplo: `10.0.0.1` e `10.0.0.2`
+
+Em macOS, os comandos live devem usar preferencialmente `sudo .venv/bin/python main.py ...`, para garantir que o Scapy instalado na virtualenv é usado mesmo com `sudo`.
 
 ## 1. Arranque da aplicação
 
@@ -43,7 +46,7 @@ Objetivo: garantir que não é possível usar live e offline ao mesmo tempo.
 Comando:
 
 ```bash
-python3 main.py -i eth0 -r captura.pcap
+python3 main.py -i en0 -r captura.pcap
 ```
 
 Resultado esperado: erro a indicar que deve ser indicada exatamente uma fonte.
@@ -55,7 +58,7 @@ Objetivo: validar a lista fechada de protocolos suportados nos filtros amigávei
 Comando:
 
 ```bash
-python3 main.py -i eth0 --protocol dns
+python3 main.py -i en0 --protocol dns
 ```
 
 Resultado esperado: erro a indicar os protocolos suportados: `arp`, `icmp`, `ip`, `tcp`, `udp`.
@@ -67,7 +70,7 @@ Objetivo: confirmar que `--log-file` e `--log-format` são usados em conjunto.
 Comando:
 
 ```bash
-python3 main.py -i eth0 --log-file teste.csv
+python3 main.py -i en0 --log-file teste.csv
 ```
 
 Resultado esperado: erro a indicar que `--log-file` e `--log-format` têm de ser usados em conjunto.
@@ -79,7 +82,7 @@ Objetivo: confirmar captura em tempo real numa interface.
 Comando:
 
 ```bash
-sudo python3 main.py -i eth0 -c 10
+sudo .venv/bin/python main.py -i en0 -c 10
 ```
 
 Resultado esperado: até 10 linhas de pacotes na consola, seguidas de resumo e estatísticas finais.
@@ -88,13 +91,19 @@ Resultado esperado: até 10 linhas de pacotes na consola, seguidas de resumo e e
 
 Objetivo: confirmar leitura de um ficheiro PCAP.
 
+Se `captura.pcap` ainda não existir, gerar primeiro:
+
+```bash
+sudo .venv/bin/python main.py -i en0 -c 30 --write-pcap captura.pcap
+```
+
 Comando:
 
 ```bash
 python3 main.py -r captura.pcap -c 10
 ```
 
-Resultado esperado: até 10 pacotes lidos do PCAP, prefixados com `[offline:captura.pcap]`, seguidos de resumo e estatísticas.
+Resultado esperado: até 10 pacotes lidos do PCAP gerado, prefixados com `[offline:captura.pcap]`, seguidos de resumo e estatísticas.
 
 ## 5. Filtros amigáveis
 
@@ -105,7 +114,7 @@ Objetivo: processar apenas pacotes associados a um IP.
 Comando:
 
 ```bash
-sudo python3 main.py -i eth0 --ip 10.0.0.1 -c 10
+sudo .venv/bin/python main.py -i en0 --ip 10.0.0.1 -c 10
 ```
 
 Resultado esperado: pacotes capturados relacionados com `10.0.0.1`.
@@ -117,7 +126,7 @@ Objetivo: processar apenas pacotes associados a um MAC.
 Comando:
 
 ```bash
-sudo python3 main.py -i eth0 --mac aa:bb:cc:dd:ee:ff -c 10
+sudo .venv/bin/python main.py -i en0 --mac aa:bb:cc:dd:ee:ff -c 10
 ```
 
 Resultado esperado: pacotes associados ao MAC indicado, se existirem.
@@ -129,7 +138,7 @@ Objetivo: filtrar por protocolo suportado.
 Comando:
 
 ```bash
-sudo python3 main.py -i eth0 --protocol icmp -c 10
+sudo .venv/bin/python main.py -i en0 --protocol icmp -c 10
 ```
 
 Resultado esperado: apenas pacotes ICMP, quando houver tráfego ICMP.
@@ -141,7 +150,7 @@ Objetivo: confirmar suporte de BPF bruto em captura live.
 Comando:
 
 ```bash
-sudo python3 main.py -i eth0 --bpf "tcp port 80" -c 10
+sudo .venv/bin/python main.py -i en0 --bpf "tcp port 80" -c 10
 ```
 
 Resultado esperado: apenas pacotes que correspondam ao BPF, tipicamente tráfego TCP na porta 80.
@@ -153,7 +162,7 @@ Objetivo: confirmar que a captura crua pode ser guardada.
 Comando:
 
 ```bash
-sudo python3 main.py -i eth0 -c 20 --write-pcap saida.pcap
+sudo .venv/bin/python main.py -i en0 -c 20 --write-pcap saida.pcap
 ```
 
 Resultado esperado: ficheiro `saida.pcap` criado com pacotes capturados.
@@ -211,7 +220,7 @@ Objetivo: validar resumo de pacotes ARP.
 Comando:
 
 ```bash
-sudo python3 main.py -i eth0 --protocol arp
+sudo .venv/bin/python main.py -i en0 --protocol arp
 ```
 
 Tráfego a gerar:
@@ -229,7 +238,7 @@ Objetivo: validar identificação de ICMP e nomes de echo.
 Comando:
 
 ```bash
-sudo python3 main.py -i eth0 --protocol icmp
+sudo .venv/bin/python main.py -i en0 --protocol icmp
 ```
 
 Tráfego a gerar:
@@ -247,7 +256,7 @@ Objetivo: validar portas, flags e hint HTTP.
 Comando:
 
 ```bash
-sudo python3 main.py -i eth0 --protocol tcp
+sudo .venv/bin/python main.py -i en0 --protocol tcp
 ```
 
 Tráfego a gerar:
@@ -265,7 +274,7 @@ Objetivo: validar portas UDP e hint DNS/DHCP quando aplicável.
 Comando:
 
 ```bash
-sudo python3 main.py -i eth0 --protocol udp
+sudo .venv/bin/python main.py -i en0 --protocol udp
 ```
 
 Tráfego a gerar, se houver DNS disponível:
@@ -283,7 +292,7 @@ Objetivo: detetar resolução ARP request -> reply.
 Comando:
 
 ```bash
-sudo python3 main.py -i eth0 --protocol arp
+sudo .venv/bin/python main.py -i en0 --protocol arp
 ```
 
 Tráfego a gerar:
@@ -305,7 +314,7 @@ Objetivo: detetar echo-request seguido de echo-reply.
 Comando:
 
 ```bash
-sudo python3 main.py -i eth0 --protocol icmp
+sudo .venv/bin/python main.py -i en0 --protocol icmp
 ```
 
 Tráfego a gerar:
@@ -327,7 +336,7 @@ Objetivo: detetar 3-way handshake e encerramento por FIN/RST quando observados.
 Comando:
 
 ```bash
-sudo python3 main.py -i eth0 --protocol tcp
+sudo .venv/bin/python main.py -i en0 --protocol tcp
 ```
 
 Tráfego a gerar:
@@ -350,7 +359,7 @@ Objetivo: confirmar o relatório final.
 Comando:
 
 ```bash
-sudo python3 main.py -i eth0 --timeout 30
+sudo .venv/bin/python main.py -i en0 --timeout 30
 ```
 
 Resultado esperado: no fim aparecem `Resumo` e `Estatísticas`, incluindo protocolos, top talkers e eventos detetados.

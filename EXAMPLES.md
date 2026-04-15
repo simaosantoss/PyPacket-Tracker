@@ -1,31 +1,59 @@
 # Exemplos de Comandos
 
-Coleção de comandos úteis para testar e demonstrar o packet sniffer. Substituir `eth0`, `en0`, `10.0.0.1`, `10.0.0.2` e `captura.pcap` pelos valores do ambiente real.
+Coleção de comandos úteis para testar e demonstrar o packet sniffer. No ambiente real de teste em macOS foi usada a interface `en0`. Em Linux/CORE, `eth0` continua a ser um exemplo comum.
 
-## Comandos básicos
+Quando a captura live é executada em macOS com uma virtualenv, usar preferencialmente:
 
-Mostrar ajuda:
+```bash
+sudo .venv/bin/python main.py ...
+```
+
+Isto garante que o Python executado com `sudo` usa o Scapy instalado na virtualenv.
+
+## Fluxo prático completo em macOS
+
+1. Confirmar a CLI:
 
 ```bash
 python3 main.py --help
 ```
 
+2. Testar captura live em `en0`:
+
+```bash
+sudo .venv/bin/python main.py -i en0 -c 10
+```
+
+3. Gerar um ficheiro PCAP, se ainda não existir:
+
+```bash
+sudo .venv/bin/python main.py -i en0 -c 30 --write-pcap captura.pcap
+```
+
+4. Testar modo offline com o PCAP gerado:
+
+```bash
+python3 main.py -r captura.pcap -c 10
+```
+
+## Comandos básicos em macOS
+
 Captura live sem filtros:
 
 ```bash
-sudo python3 main.py -i eth0
+sudo .venv/bin/python main.py -i en0
 ```
 
 Captura live com limite de pacotes:
 
 ```bash
-sudo python3 main.py -i eth0 -c 50
+sudo .venv/bin/python main.py -i en0 -c 50
 ```
 
 Captura live com timeout:
 
 ```bash
-sudo python3 main.py -i eth0 --timeout 30
+sudo .venv/bin/python main.py -i en0 --timeout 30
 ```
 
 Leitura offline de PCAP:
@@ -45,43 +73,43 @@ python3 main.py -r captura.pcap -c 20
 Filtro por IP:
 
 ```bash
-sudo python3 main.py -i eth0 --ip 10.0.0.1
+sudo .venv/bin/python main.py -i en0 --ip 10.0.0.1
 ```
 
 Filtro por MAC:
 
 ```bash
-sudo python3 main.py -i eth0 --mac aa:bb:cc:dd:ee:ff
+sudo .venv/bin/python main.py -i en0 --mac aa:bb:cc:dd:ee:ff
 ```
 
 Filtro por ARP:
 
 ```bash
-sudo python3 main.py -i eth0 --protocol arp
+sudo .venv/bin/python main.py -i en0 --protocol arp
 ```
 
 Filtro por ICMP:
 
 ```bash
-sudo python3 main.py -i eth0 --protocol icmp
+sudo .venv/bin/python main.py -i en0 --protocol icmp
 ```
 
 Filtro por TCP:
 
 ```bash
-sudo python3 main.py -i eth0 --protocol tcp
+sudo .venv/bin/python main.py -i en0 --protocol tcp
 ```
 
 Filtro por UDP:
 
 ```bash
-sudo python3 main.py -i eth0 --protocol udp
+sudo .venv/bin/python main.py -i en0 --protocol udp
 ```
 
 Combinar filtros amigáveis:
 
 ```bash
-sudo python3 main.py -i eth0 --ip 10.0.0.1 --protocol tcp
+sudo .venv/bin/python main.py -i en0 --ip 10.0.0.1 --protocol tcp
 ```
 
 ## BPF bruto em modo live
@@ -89,25 +117,25 @@ sudo python3 main.py -i eth0 --ip 10.0.0.1 --protocol tcp
 Capturar tráfego TCP na porta 80:
 
 ```bash
-sudo python3 main.py -i eth0 --bpf "tcp port 80"
+sudo .venv/bin/python main.py -i en0 --bpf "tcp port 80"
 ```
 
 Capturar tráfego DNS:
 
 ```bash
-sudo python3 main.py -i eth0 --bpf "udp port 53"
+sudo .venv/bin/python main.py -i en0 --bpf "udp port 53"
 ```
 
-Capturar tráfego entre hosts:
+Capturar tráfego associado a um host:
 
 ```bash
-sudo python3 main.py -i eth0 --bpf "host 10.0.0.2"
+sudo .venv/bin/python main.py -i en0 --bpf "host 8.8.8.8"
 ```
 
 Combinar BPF com filtro amigável:
 
 ```bash
-sudo python3 main.py -i eth0 --bpf "tcp port 80" --ip 10.0.0.2
+sudo .venv/bin/python main.py -i en0 --bpf "tcp port 80" --ip 10.0.0.2
 ```
 
 ## Escrita para PCAP
@@ -115,19 +143,25 @@ sudo python3 main.py -i eth0 --bpf "tcp port 80" --ip 10.0.0.2
 Guardar captura crua:
 
 ```bash
-sudo python3 main.py -i eth0 -c 100 --write-pcap saida.pcap
+sudo .venv/bin/python main.py -i en0 -c 100 --write-pcap saida.pcap
+```
+
+Gerar o PCAP usado nos testes offline:
+
+```bash
+sudo .venv/bin/python main.py -i en0 -c 30 --write-pcap captura.pcap
 ```
 
 Ler o PCAP guardado:
 
 ```bash
-python3 main.py -r saida.pcap
+python3 main.py -r captura.pcap
 ```
 
 Guardar PCAP e filtrar por protocolo:
 
 ```bash
-sudo python3 main.py -i eth0 --protocol icmp --write-pcap icmp.pcap -c 50
+sudo .venv/bin/python main.py -i en0 --protocol icmp --write-pcap icmp.pcap -c 50
 ```
 
 ## Logging
@@ -153,13 +187,13 @@ python3 main.py -r captura.pcap --log-file captura.jsonl --log-format json
 Captura live com log CSV:
 
 ```bash
-sudo python3 main.py -i eth0 -c 50 --log-file live.csv --log-format csv
+sudo .venv/bin/python main.py -i en0 -c 50 --log-file live.csv --log-format csv
 ```
 
 Captura live com log JSON:
 
 ```bash
-sudo python3 main.py -i eth0 --timeout 30 --log-file live.jsonl --log-format json
+sudo .venv/bin/python main.py -i en0 --timeout 30 --log-file live.jsonl --log-format json
 ```
 
 ## Tráfego para gerar durante testes
@@ -167,13 +201,13 @@ sudo python3 main.py -i eth0 --timeout 30 --log-file live.jsonl --log-format jso
 Gerar ICMP:
 
 ```bash
-ping 10.0.0.2
+ping 8.8.8.8
 ```
 
 Gerar TCP/HTTP:
 
 ```bash
-curl http://10.0.0.2
+curl http://example.com
 ```
 
 Servidor TCP simples com `nc` no destino:
@@ -206,7 +240,9 @@ ou:
 nslookup example.com
 ```
 
-## Exemplos para CORE
+## Exemplos para CORE ou Linux
+
+Em CORE/Linux, a interface pode ser `eth0`, mas deve ser confirmada com `ip addr`.
 
 Capturar tudo num nó CORE:
 
@@ -240,34 +276,6 @@ Guardar PCAP no CORE:
 sudo python3 main.py -i eth0 -c 50 --write-pcap core.pcap
 ```
 
-## Exemplos para interface real
-
-macOS, interface comum `en0`:
-
-```bash
-sudo python3 main.py -i en0 --timeout 30
-```
-
-Linux, interface comum `eth0`:
-
-```bash
-sudo python3 main.py -i eth0 --timeout 30
-```
-
-Reduzir ruído com ICMP:
-
-```bash
-sudo python3 main.py -i en0 --protocol icmp
-ping 8.8.8.8
-```
-
-Capturar DNS:
-
-```bash
-sudo python3 main.py -i en0 --bpf "udp port 53"
-dig example.com
-```
-
 ## Erros esperados úteis para demonstrar validação
 
 Sem fonte de captura:
@@ -279,17 +287,17 @@ python3 main.py
 Duas fontes ao mesmo tempo:
 
 ```bash
-python3 main.py -i eth0 -r captura.pcap
+python3 main.py -i en0 -r captura.pcap
 ```
 
 Protocolo inválido:
 
 ```bash
-python3 main.py -i eth0 --protocol dns
+python3 main.py -i en0 --protocol dns
 ```
 
 Logging incompleto:
 
 ```bash
-python3 main.py -i eth0 --log-file teste.csv
+python3 main.py -i en0 --log-file teste.csv
 ```
