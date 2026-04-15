@@ -24,6 +24,7 @@ from typing import Any, Optional
 SUPPORTED_PROTOCOLS = {"arp", "ip", "icmp", "tcp", "udp"}
 MAC_RE = re.compile(r"^[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}$")
 IP_PROTOCOL_NAMES = {1: "ICMP", 6: "TCP", 17: "UDP"}
+TCP_FLAG_BITS = {"FIN": 0x01, "SYN": 0x02, "RST": 0x04, "ACK": 0x10}
 
 
 @dataclass
@@ -327,7 +328,7 @@ def extract_arp_info(packet: Any) -> dict[str, Any]:
 
 
 def extract_ipv4_info(packet: Any) -> dict[str, Any]:
-    """Extrai a informação IPv4 de alto nível, sem detalhar a camada L4."""
+    """Extrai a informação IPv4 e um resumo simples da camada de transporte."""
 
     from scapy.layers.inet import IP
 
@@ -336,14 +337,86 @@ def extract_ipv4_info(packet: Any) -> dict[str, Any]:
 
     ipv4 = packet[IP]
     proto = getattr(ipv4, "proto", None)
+    protocol = IP_PROTOCOL_NAMES.get(proto, str(proto) if proto is not None else None)
+    transport_info = extract_transport_info(packet, protocol)
+
     return {
         "src_ip": getattr(ipv4, "src", None),
         "dst_ip": getattr(ipv4, "dst", None),
         "ttl": getattr(ipv4, "ttl", None),
         "length": getattr(ipv4, "len", None),
-        "protocol": IP_PROTOCOL_NAMES.get(
-            proto, str(proto) if proto is not None else None
-        ),
+        "protocol": protocol,
+        "transport": transport_info,
+    }
+
+
+def extract_transport_info(packet: Any, protocol: Optional[str]) -> dict[str, Any]:
+    """Escolhe o extractor L4 adequado, mantendo o parsing limitado."""
+
+    if protocol == "ICMP":
+        return extract_icmp_info(packet)
+    if protocol == "TCP":
+        return extract_tcp_info(packet)
+    if protocol == "UDP":
+        return extract_udp_info(packet)
+    return {}
+
+
+def extract_icmp_info(packet: Any) -> dict[str, Any]:
+    """Extrai tipo e código ICMP, sem interpretar payload."""
+
+    from scapy.layers.inet import ICMP
+
+    if ICMP not in packet:
+        return {}
+
+    icmp = packet[ICMP]
+    icmp_type = getattr(icmp, "type", None)
+    icmp_code = getattr(icmp, "code", None)
+    return {
+        "protocol": "ICMP",
+        "type": icmp_type,
+        "code": icmp_code,
+        "name": format_icmp_name(icmp_type, icmp_code),
+    }
+
+
+def extract_tcp_info(packet: Any) -> dict[str, Any]:
+    """Extrai portas e flags TCP relevantes."""
+
+    from scapy.layers.inet import TCP
+
+    if TCP not in packet:
+        return {}
+
+    tcp = packet[TCP]
+    src_port = getattr(tcp, "sport", None)
+    dst_port = getattr(tcp, "dport", None)
+    return {
+        "protocol": "TCP",
+        "src_port": src_port,
+        "dst_port": dst_port,
+        "flags": format_tcp_flags(getattr(tcp, "flags", None)),
+        "service": guess_service("TCP", src_port, dst_port),
+    }
+
+
+def extract_udp_info(packet: Any) -> dict[str, Any]:
+    """Extrai portas UDP, sem analisar payload."""
+
+    from scapy.layers.inet import UDP
+
+    if UDP not in packet:
+        return {}
+
+    udp = packet[UDP]
+    src_port = getattr(udp, "sport", None)
+    dst_port = getattr(udp, "dport", None)
+    return {
+        "protocol": "UDP",
+        "src_port": src_port,
+        "dst_port": dst_port,
+        "service": guess_service("UDP", src_port, dst_port),
     }
 
 
@@ -371,7 +444,55 @@ def format_arp_operation(value: Any) -> Optional[str]:
     return operations.get(value, str(value))
 
 
-def format_direction(src: Any, dst: Any, src_label: str, dst_label: str) -> Optional[str]:
+def format_icmp_name(icmp_type: Any, icmp_code: Any) -> Optional[str]:
+    """Dá nomes curtos apenas a tipos ICMP comuns nesta fase."""
+
+    if icmp_type == 8 and icmp_code == 0:
+        return "echo-request"
+    if icmp_type == 0 and icmp_code == 0:
+        return "echo-reply"
+    return None
+
+
+def format_tcp_flags(flags: Any) -> Optional[str]:
+    """Formata flags TCP comuns de forma curta."""
+
+    if flags is None:
+        return None
+
+    labels: list[str] = []
+    try:
+        raw_flags = int(flags)
+        for label, bit in TCP_FLAG_BITS.items():
+            if raw_flags & bit:
+                labels.append(label)
+    except (TypeError, ValueError):
+        raw_flags_text = str(flags)
+        scapy_flags = {"F": "FIN", "S": "SYN", "R": "RST", "A": "ACK"}
+        labels.extend(
+            label for short, label in scapy_flags.items() if short in raw_flags_text
+        )
+
+    return "-".join(labels) if labels else str(flags)
+
+
+def guess_service(protocol: str, src_port: Any, dst_port: Any) -> Optional[str]:
+    """Sugere um serviço apenas quando a porta é suficientemente conhecida."""
+
+    ports = {port for port in (src_port, dst_port) if isinstance(port, int)}
+
+    if 53 in ports:
+        return "DNS"
+    if protocol == "UDP" and ports.intersection({67, 68}):
+        return "DHCP"
+    if protocol == "TCP" and 80 in ports:
+        return "HTTP"
+    return None
+
+
+def format_direction(
+    src: Any, dst: Any, src_label: str, dst_label: str
+) -> Optional[str]:
     """Formata origem e destino sem inventar valores em falta."""
 
     if src and dst:
@@ -380,6 +501,34 @@ def format_direction(src: Any, dst: Any, src_label: str, dst_label: str) -> Opti
         return f"{src_label}={src}"
     if dst:
         return f"{dst_label}={dst}"
+    return None
+
+
+def format_endpoint(address: Any, port: Any, port_label: str) -> Optional[str]:
+    """Formata um endpoint IP, com porta quando ela existe."""
+
+    if address and port is not None:
+        return f"{address}:{port}"
+    if address:
+        return str(address)
+    if port is not None:
+        return f"{port_label}={port}"
+    return None
+
+
+def format_ipv4_flow(info: dict[str, Any]) -> Optional[str]:
+    """Formata origem e destino IPv4, incluindo portas TCP/UDP se existirem."""
+
+    transport = info.get("transport", {})
+    src = format_endpoint(info.get("src_ip"), transport.get("src_port"), "port_src")
+    dst = format_endpoint(info.get("dst_ip"), transport.get("dst_port"), "port_dst")
+
+    if src and dst:
+        return f"{src} -> {dst}"
+    if src:
+        return src
+    if dst:
+        return dst
     return None
 
 
@@ -440,25 +589,62 @@ def summarize_ipv4(info: dict[str, Any]) -> str:
     """Cria um resumo textual curto para IPv4."""
 
     parts = ["IPv4"]
-    ip_flow = format_direction(
-        info.get("src_ip"), info.get("dst_ip"), "ip_src", "ip_dst"
-    )
+    ip_flow = format_ipv4_flow(info)
     if ip_flow:
         parts.append(ip_flow)
     if info.get("ttl") is not None:
         parts.append(f"ttl={info['ttl']}")
-    if info.get("protocol"):
+
+    transport = info.get("transport", {})
+    if transport:
+        parts.extend(summarize_transport(transport))
+    elif info.get("protocol"):
         parts.append(f"proto={info['protocol']}")
+
     if info.get("length") is not None:
         parts.append(f"{info['length']} bytes")
     return " | ".join(parts)
 
 
+def summarize_transport(info: dict[str, Any]) -> list[str]:
+    """Resume ICMP, TCP ou UDP sem analisar payload."""
+
+    protocol = info.get("protocol")
+
+    if protocol == "ICMP":
+        parts = ["ICMP"]
+        if info.get("name"):
+            parts.append(info["name"])
+        elif info.get("type") is not None or info.get("code") is not None:
+            parts.append(f"type={info.get('type')}")
+            parts.append(f"code={info.get('code')}")
+        return parts
+
+    if protocol == "TCP":
+        tcp_label = "TCP"
+        if info.get("flags"):
+            tcp_label = f"TCP [{info['flags']}]"
+        return append_service_hint([tcp_label], info)
+
+    if protocol == "UDP":
+        return append_service_hint(["UDP"], info)
+
+    return [f"proto={protocol}"] if protocol else []
+
+
+def append_service_hint(parts: list[str], info: dict[str, Any]) -> list[str]:
+    """Acrescenta o serviço sugerido quando há uma porta conhecida."""
+
+    if info.get("service"):
+        parts.append(info["service"])
+    return parts
+
+
 def handle_packet(packet: Any, context: CaptureContext) -> None:
     """Processa um pacote capturado ou carregado.
 
-    Nesta etapa o processamento identifica apenas Ethernet, ARP e IPv4, sem
-    entrar ainda no detalhe de TCP, UDP ou ICMP.
+    Nesta etapa o processamento identifica Ethernet, ARP, IPv4 e detalhes
+    essenciais de ICMP, TCP e UDP.
     """
 
     context.packet_count += 1
