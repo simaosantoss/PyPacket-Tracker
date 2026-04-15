@@ -11,6 +11,8 @@ Assume-se:
 
 Em macOS, os comandos live devem usar preferencialmente `sudo .venv/bin/python main.py ...`, para garantir que o Scapy instalado na virtualenv é usado mesmo com `sudo`.
 
+Em Linux/CORE, o equivalente habitual é `sudo python3 main.py -i eth0 ...`, ajustando `eth0` à interface real indicada por `ip addr`.
+
 ## 1. Arranque da aplicação
 
 ### Ajuda da CLI
@@ -38,6 +40,8 @@ python3 main.py
 Resultado esperado: erro claro a indicar que deve ser usado `--interface` ou `--pcap`.
 
 ## 2. Validação de argumentos
+
+Os exemplos usam `en0`; em Linux/CORE pode ser usado `eth0` ou qualquer interface real. Nestes testes, o objetivo é validar argumentos, não capturar tráfego.
 
 ### Duas fontes em simultâneo
 
@@ -85,6 +89,12 @@ Comando:
 sudo .venv/bin/python main.py -i en0 -c 10
 ```
 
+Equivalente Linux/CORE:
+
+```bash
+sudo python3 main.py -i eth0 -c 10
+```
+
 Resultado esperado: até 10 linhas de pacotes na consola, seguidas de resumo e estatísticas finais.
 
 ## 4. Leitura offline
@@ -97,6 +107,12 @@ Se `captura.pcap` ainda não existir, gerar primeiro:
 sudo .venv/bin/python main.py -i en0 -c 30 --write-pcap captura.pcap
 ```
 
+Equivalente Linux/CORE:
+
+```bash
+sudo python3 main.py -i eth0 -c 30 --write-pcap captura.pcap
+```
+
 Comando:
 
 ```bash
@@ -106,6 +122,8 @@ python3 main.py -r captura.pcap -c 10
 Resultado esperado: até 10 pacotes lidos do PCAP gerado, prefixados com `[offline:captura.pcap]`, seguidos de resumo e estatísticas.
 
 ## 5. Filtros amigáveis
+
+Os comandos seguintes usam macOS/`en0`. Em Linux/CORE, trocar por `sudo python3 main.py -i eth0 ...`.
 
 ### Filtro por IP
 
@@ -145,6 +163,8 @@ Resultado esperado: apenas pacotes ICMP, quando houver tráfego ICMP.
 
 ## 6. BPF em modo live
 
+O exemplo principal usa macOS/`en0`; em Linux/CORE, usar `sudo python3 main.py -i eth0 --bpf "tcp port 80" -c 10`.
+
 Objetivo: confirmar suporte de BPF bruto em captura live.
 
 Comando:
@@ -163,6 +183,12 @@ Comando:
 
 ```bash
 sudo .venv/bin/python main.py -i en0 -c 20 --write-pcap saida.pcap
+```
+
+Equivalente Linux/CORE:
+
+```bash
+sudo python3 main.py -i eth0 -c 20 --write-pcap saida.pcap
 ```
 
 Resultado esperado: ficheiro `saida.pcap` criado com pacotes capturados.
@@ -214,6 +240,8 @@ python3 main.py -r captura.pcap -c 5 --log-file teste.jsonl --log-format json
 Resultado esperado: `teste.jsonl` com uma linha JSON por pacote.
 
 ## 9. Parsing ARP
+
+Os testes de parsing e eventos usam macOS/`en0` nos comandos. Em Linux/CORE, usar a mesma opção com `sudo python3 main.py -i eth0 ...`.
 
 Objetivo: validar resumo de pacotes ARP.
 
@@ -360,6 +388,12 @@ Comando:
 
 ```bash
 sudo .venv/bin/python main.py -i en0 --timeout 30
+```
+
+Equivalente Linux/CORE:
+
+```bash
+sudo python3 main.py -i eth0 --timeout 30
 ```
 
 Resultado esperado: no fim aparecem `Resumo` e `Estatísticas`, incluindo protocolos, top talkers e eventos detetados.

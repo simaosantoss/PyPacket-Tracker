@@ -36,6 +36,28 @@ sudo .venv/bin/python main.py -i en0 -c 30 --write-pcap captura.pcap
 python3 main.py -r captura.pcap -c 10
 ```
 
+## Fluxo prático completo em Linux/CORE
+
+1. Confirmar a interface com `ip addr`. Neste exemplo usa-se `eth0`.
+
+2. Testar captura live:
+
+```bash
+sudo python3 main.py -i eth0 -c 10
+```
+
+3. Gerar um ficheiro PCAP, se ainda não existir:
+
+```bash
+sudo python3 main.py -i eth0 -c 30 --write-pcap captura.pcap
+```
+
+4. Testar modo offline com o PCAP gerado:
+
+```bash
+python3 main.py -r captura.pcap -c 10
+```
+
 ## Comandos básicos em macOS
 
 Captura live sem filtros:
@@ -278,6 +300,8 @@ sudo python3 main.py -i eth0 -c 50 --write-pcap core.pcap
 
 ## Erros esperados úteis para demonstrar validação
 
+Nos comandos que recebem interface, substituir `<interface>` por `en0` em macOS ou por `eth0`/interface obtida com `ip addr` em Linux/CORE.
+
 Sem fonte de captura:
 
 ```bash
@@ -287,17 +311,17 @@ python3 main.py
 Duas fontes ao mesmo tempo:
 
 ```bash
-python3 main.py -i en0 -r captura.pcap
+python3 main.py -i <interface> -r captura.pcap
 ```
 
 Protocolo inválido:
 
 ```bash
-python3 main.py -i en0 --protocol dns
+python3 main.py -i <interface> --protocol dns
 ```
 
 Logging incompleto:
 
 ```bash
-python3 main.py -i en0 --log-file teste.csv
+python3 main.py -i <interface> --log-file teste.csv
 ```

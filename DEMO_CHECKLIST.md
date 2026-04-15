@@ -1,6 +1,6 @@
 # Checklist de Demonstração
 
-Checklist prática para preparar e executar a demonstração do packet sniffer. O fluxo abaixo está ajustado ao ambiente real de teste em macOS, onde a interface usada foi `en0`.
+Checklist prática para preparar e executar a demonstração do packet sniffer em macOS, Linux ou CORE. O ambiente real observado usou macOS com a interface `en0`, mas os comandos equivalentes para Linux/CORE também estão indicados.
 
 ## Antes da demonstração
 
@@ -45,16 +45,32 @@ python3 -m pip install scapy
 python3 main.py --help
 ```
 
-- [ ] Identificar a interface a usar na demonstração. Em macOS, a interface ativa mais provável é `en0`:
+- [ ] Identificar a interface a usar na demonstração:
+
+macOS, normalmente `en0`:
 
 ```bash
 ifconfig
 ```
 
+Linux/CORE, normalmente `eth0`, `ens33` ou `wlan0`:
+
+```bash
+ip addr
+```
+
 - [ ] Se for preciso testar modo offline e ainda não existir `captura.pcap`, gerar primeiro um PCAP:
+
+macOS:
 
 ```bash
 sudo .venv/bin/python main.py -i en0 -c 30 --write-pcap captura.pcap
+```
+
+Linux/CORE:
+
+```bash
+sudo python3 main.py -i eth0 -c 30 --write-pcap captura.pcap
 ```
 
 - [ ] Confirmar que o PCAP gerado pode ser lido:
@@ -178,6 +194,33 @@ sudo .venv/bin/python main.py -i en0 -c 30 --write-pcap captura.pcap
 ```
 
 - [ ] Ler o PCAP gerado em modo offline:
+
+```bash
+python3 main.py -r captura.pcap -c 10
+```
+
+## Demonstração numa interface real Linux
+
+- [ ] Confirmar a interface ativa com `ip addr`. Exemplos comuns: `eth0`, `ens33`, `wlan0`.
+- [ ] Usar uma captura curta com timeout:
+
+```bash
+sudo python3 main.py -i eth0 --timeout 30
+```
+
+- [ ] Usar filtro para reduzir ruído:
+
+```bash
+sudo python3 main.py -i eth0 --protocol icmp
+```
+
+- [ ] Demonstrar escrita para PCAP, caso ainda não exista um ficheiro para modo offline:
+
+```bash
+sudo python3 main.py -i eth0 -c 30 --write-pcap captura.pcap
+```
+
+- [ ] Ler o PCAP gerado:
 
 ```bash
 python3 main.py -r captura.pcap -c 10

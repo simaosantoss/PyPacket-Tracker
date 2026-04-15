@@ -49,34 +49,52 @@ Instalação recomendada:
 python3 -m pip install scapy
 ```
 
-Em modo live, normalmente são necessários privilégios de administrador para capturar pacotes:
+Em modo live, normalmente são necessários privilégios de administrador para capturar pacotes.
+
+macOS, normalmente com interface `en0`:
 
 ```bash
 sudo .venv/bin/python main.py -i en0
 ```
 
-No macOS, a interface ativa típica é `en0`. Se o projeto estiver numa virtualenv, é preferível chamar explicitamente o Python da virtualenv quando se usa `sudo`, para garantir que o Scapy correto é usado:
+Linux/CORE, normalmente com `eth0`, `ens33` ou `wlan0`:
 
 ```bash
-sudo .venv/bin/python main.py -i en0
+sudo python3 main.py -i eth0
 ```
 
-Em Linux/CORE, são comuns nomes como `eth0`, `ens33` ou `wlan0`; nesses ambientes, um exemplo típico seria `sudo python3 main.py -i eth0`.
+No macOS, se o projeto estiver numa virtualenv, é preferível chamar explicitamente o Python da virtualenv quando se usa `sudo`, para garantir que o Scapy correto é usado. Em Linux/CORE, confirmar primeiro a interface com `ip addr`.
 
 ## Como executar
 
 ### Captura live sem filtros
 
+macOS:
+
 ```bash
 sudo .venv/bin/python main.py -i en0
 ```
 
+Linux/CORE:
+
+```bash
+sudo python3 main.py -i eth0
+```
+
 ### Leitura offline de PCAP
 
-Se ainda não existir um PCAP, pode ser criado primeiro com:
+Se ainda não existir um PCAP, pode ser criado primeiro com `--write-pcap`.
+
+macOS:
 
 ```bash
 sudo .venv/bin/python main.py -i en0 -c 30 --write-pcap captura.pcap
+```
+
+Linux/CORE:
+
+```bash
+sudo python3 main.py -i eth0 -c 30 --write-pcap captura.pcap
 ```
 
 Depois, a leitura offline é feita com:
@@ -87,8 +105,10 @@ python3 main.py -r captura.pcap
 
 ### Captura com filtros amigáveis
 
+Nos exemplos live seguintes, usar `sudo .venv/bin/python ... -i en0` em macOS ou `sudo python3 ... -i eth0` em Linux/CORE, ajustando sempre a interface real.
+
 ```bash
-sudo python3 main.py -i eth0 --ip 10.0.0.1 --protocol tcp
+sudo .venv/bin/python main.py -i en0 --ip 10.0.0.1 --protocol tcp
 ```
 
 Filtros suportados:
@@ -102,7 +122,7 @@ Filtros suportados:
 ### Captura live com BPF bruto
 
 ```bash
-sudo python3 main.py -i eth0 --bpf "tcp port 80"
+sudo .venv/bin/python main.py -i en0 --bpf "tcp port 80"
 ```
 
 Nota: nesta versão, BPF bruto só é suportado em modo live. Em modo offline, devem ser usados os filtros amigáveis.
@@ -110,14 +130,14 @@ Nota: nesta versão, BPF bruto só é suportado em modo live. Em modo offline, d
 ### Limitar número de pacotes ou tempo de captura
 
 ```bash
-sudo python3 main.py -i eth0 -c 50
-sudo python3 main.py -i eth0 --timeout 30
+sudo .venv/bin/python main.py -i en0 -c 50
+sudo .venv/bin/python main.py -i en0 --timeout 30
 ```
 
 ### Guardar captura crua em PCAP
 
 ```bash
-sudo python3 main.py -i eth0 --write-pcap saida.pcap
+sudo .venv/bin/python main.py -i en0 --write-pcap saida.pcap
 ```
 
 ### Logging em ficheiro
@@ -303,18 +323,37 @@ sudo python3 main.py -i eth0 --log-file core.csv --log-format csv
 ### Numa interface real
 
 1. Listar interfaces disponíveis no sistema.
-2. Escolher a interface ativa (`eth0`, `wlan0`, `en0`, etc.).
-3. Executar com privilégios adequados:
+   - macOS: `ifconfig`, normalmente `en0`.
+   - Linux: `ip addr`, normalmente `eth0`, `ens33` ou `wlan0`.
+2. Escolher a interface ativa.
+3. Executar com privilégios adequados.
+
+macOS:
 
 ```bash
-sudo python3 main.py -i en0 --timeout 30
+sudo .venv/bin/python main.py -i en0 --timeout 30
+```
+
+Linux:
+
+```bash
+sudo python3 main.py -i eth0 --timeout 30
 ```
 
 4. Para uma demonstração controlada, usar filtros:
 
+macOS:
+
 ```bash
-sudo python3 main.py -i en0 --protocol icmp
-sudo python3 main.py -i en0 --bpf "tcp port 80"
+sudo .venv/bin/python main.py -i en0 --protocol icmp
+sudo .venv/bin/python main.py -i en0 --bpf "tcp port 80"
+```
+
+Linux:
+
+```bash
+sudo python3 main.py -i eth0 --protocol icmp
+sudo python3 main.py -i eth0 --bpf "tcp port 80"
 ```
 
 5. Interromper com `Ctrl+C` para ver o resumo final quando não for usado `--count` ou `--timeout`.
