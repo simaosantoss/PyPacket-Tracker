@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
-from parsing import FriendlyFilters, packet_matches_friendly_filters, summarize_packet
+from parsing import (
+    FriendlyFilters,
+    build_log_record,
+    packet_matches_friendly_filters,
+    summarize_packet,
+)
+from tracking import TrackerState, process_packet_for_events
 
 
 @dataclass
@@ -23,6 +29,8 @@ class CaptureContext:
     bpf_filter: str
     packet_count: int = 0
     writer: Optional[Any] = None
+    packet_logger: Optional[Any] = None
+    tracker_state: TrackerState = field(default_factory=TrackerState)
 
 
 def require_scapy() -> tuple[Any, Any, Any, type[Exception]]:
@@ -72,10 +80,26 @@ def handle_packet(packet: Any, context: CaptureContext) -> None:
     if context.writer is not None:
         context.writer.write(packet)
 
-    print(f"{source_label(context)} {summarize_packet(packet)}")
+    summary = summarize_packet(packet)
+    print(f"{source_label(context)} {summary}")
+
+    if context.packet_logger is not None:
+        record = build_log_record(
+            packet,
+            context.source_type,
+            context.source_name,
+            context.packet_count,
+            summary,
+        )
+        context.packet_logger.write_packet(record)
+
+    for event in process_packet_for_events(packet, context.tracker_state):
+        print(event)
 
 
-def run_live_capture(args: Any, bpf_filter: str) -> CaptureContext:
+def run_live_capture(
+    args: Any, bpf_filter: str, packet_logger: Optional[Any] = None
+) -> CaptureContext:
     """Executa uma captura em tempo real numa interface de rede."""
 
     _, PcapWriter, sniff, Scapy_Exception = require_scapy()
@@ -83,6 +107,7 @@ def run_live_capture(args: Any, bpf_filter: str) -> CaptureContext:
         source_type="live",
         source_name=args.interface,
         bpf_filter=bpf_filter,
+        packet_logger=packet_logger,
     )
 
     try:
@@ -120,7 +145,10 @@ def run_live_capture(args: Any, bpf_filter: str) -> CaptureContext:
 
 
 def run_offline_capture(
-    args: Any, bpf_filter: str, friendly_filters: FriendlyFilters
+    args: Any,
+    bpf_filter: str,
+    friendly_filters: FriendlyFilters,
+    packet_logger: Optional[Any] = None,
 ) -> CaptureContext:
     """Lê pacotes de um ficheiro PCAP e processa-os em Python."""
 
@@ -129,6 +157,7 @@ def run_offline_capture(
         source_type="offline",
         source_name=args.pcap,
         bpf_filter=bpf_filter,
+        packet_logger=packet_logger,
     )
 
     try:

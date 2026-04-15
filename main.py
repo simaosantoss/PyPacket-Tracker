@@ -8,9 +8,14 @@ import ipaddress
 import re
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from capture import CaptureContext, run_live_capture, run_offline_capture
+from logging_output import (
+    SUPPORTED_LOG_FORMATS,
+    open_packet_logger,
+    validate_log_path,
+)
 from parsing import FriendlyFilters
 
 
@@ -60,6 +65,12 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         "--timeout",
         type=float,
         help="tempo limite da captura live, em segundos",
+    )
+    parser.add_argument("--log-file", help="ficheiro de saída para logging estruturado")
+    parser.add_argument(
+        "--log-format",
+        choices=sorted(SUPPORTED_LOG_FORMATS),
+        help="formato do log: txt, csv ou json",
     )
 
     return parser.parse_args(argv)
@@ -132,6 +143,18 @@ def validate_args(args: argparse.Namespace) -> None:
                 f"diretoria de saída não existe para --write-pcap: {str(parent)!r}."
             )
 
+    if bool(args.log_file) != bool(args.log_format):
+        errors.append("--log-file e --log-format têm de ser usados em conjunto.")
+
+    if args.log_format and args.log_format not in SUPPORTED_LOG_FORMATS:
+        supported = ", ".join(sorted(SUPPORTED_LOG_FORMATS))
+        errors.append(f"formato de log inválido. Formatos suportados: {supported}.")
+
+    if args.log_file:
+        log_path_error = validate_log_path(args.log_file)
+        if log_path_error:
+            errors.append(log_path_error)
+
     if errors:
         for error in errors:
             print(f"Erro: {error}", file=sys.stderr)
@@ -178,15 +201,23 @@ def main(argv: Optional[list[str]] = None) -> int:
     args = parse_args(argv)
     validate_args(args)
     bpf_filter = build_bpf_filter(args)
+    logger: Optional[Any] = None
 
-    if args.interface:
-        context = run_live_capture(args, bpf_filter)
-    else:
-        friendly_filters = get_friendly_filters(args)
-        context = run_offline_capture(args, bpf_filter, friendly_filters)
+    try:
+        if args.log_file:
+            logger = open_packet_logger(args.log_file, args.log_format)
 
-    print_summary(context)
-    return 0
+        if args.interface:
+            context = run_live_capture(args, bpf_filter, logger)
+        else:
+            friendly_filters = get_friendly_filters(args)
+            context = run_offline_capture(args, bpf_filter, friendly_filters, logger)
+
+        print_summary(context)
+        return 0
+    finally:
+        if logger is not None:
+            logger.close()
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Optional
 
 
@@ -350,6 +351,77 @@ def summarize_packet(packet: Any) -> str:
     if ethertype:
         return f"Outro | ethertype={ethertype} | tipo não suportado nesta fase"
     return "Outro | tipo não suportado nesta fase"
+
+
+def build_log_record(
+    packet: Any,
+    source_type: str,
+    source_name: str,
+    packet_number: int,
+    summary: str,
+) -> dict[str, Any]:
+    """Constrói um registo achatado e estável para logging estruturado."""
+
+    record: dict[str, Any] = {
+        "packet_number": packet_number,
+        "source_type": source_type,
+        "source_name": source_name,
+        "source_display": format_source_display(source_type, source_name),
+        "summary": summary,
+        "protocol": "",
+        "src_ip": "",
+        "dst_ip": "",
+        "src_port": "",
+        "dst_port": "",
+        "ttl": "",
+        "length": "",
+        "service": "",
+    }
+
+    try:
+        info = extract_packet_info(packet)
+    except Exception:
+        return record
+
+    if "arp" in info:
+        fill_arp_log_record(record, info["arp"])
+    elif "ipv4" in info:
+        fill_ipv4_log_record(record, info["ipv4"])
+
+    return record
+
+
+def format_source_display(source_type: str, source_name: str) -> str:
+    """Formata a fonte tal como aparece no prefixo da consola."""
+
+    source = source_name if source_type == "live" else Path(source_name).name
+    return f"{source_type}:{source}"
+
+
+def fill_arp_log_record(record: dict[str, Any], info: dict[str, Any]) -> None:
+    """Preenche campos de log para ARP."""
+
+    record["protocol"] = "ARP"
+    record["src_ip"] = info.get("src_ip") or ""
+    record["dst_ip"] = info.get("dst_ip") or ""
+
+
+def fill_ipv4_log_record(record: dict[str, Any], info: dict[str, Any]) -> None:
+    """Preenche campos de log para IPv4 e transporte, quando existir."""
+
+    transport = info.get("transport", {})
+    record["protocol"] = transport.get("protocol") or info.get("protocol") or "IPv4"
+    record["src_ip"] = info.get("src_ip") or ""
+    record["dst_ip"] = info.get("dst_ip") or ""
+    record["ttl"] = info.get("ttl") if info.get("ttl") is not None else ""
+    record["length"] = info.get("length") if info.get("length") is not None else ""
+    record["src_port"] = (
+        transport.get("src_port") if transport.get("src_port") is not None else ""
+    )
+    record["dst_port"] = (
+        transport.get("dst_port") if transport.get("dst_port") is not None else ""
+    )
+    record["service"] = transport.get("service") or ""
 
 
 def summarize_arp(info: dict[str, Any]) -> str:
