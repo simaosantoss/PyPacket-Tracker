@@ -31,6 +31,14 @@ logging_output.py  escrita de logs em txt, csv e json
 stats.py           estatísticas finais da execução
 ```
 
+Documentação de apoio:
+
+```text
+TEST_PLAN.md       plano de testes por funcionalidade
+DEMO_CHECKLIST.md  checklist para demonstração/defesa
+EXAMPLES.md        comandos prontos para testes e demonstração
+```
+
 ## Dependências
 
 O projeto usa Python 3 e Scapy.
