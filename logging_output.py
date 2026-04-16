@@ -13,6 +13,7 @@ from typing import Any, Optional
 SUPPORTED_LOG_FORMATS = {"txt", "csv", "json"}
 CSV_FIELDS = [
     "packet_number",
+    "timestamp",
     "source_type",
     "source_name",
     "protocol",
@@ -63,6 +64,26 @@ class PacketLogger:
         self.file.close()
 
 
+def format_packet_line(record: dict[str, Any]) -> str:
+    """Formata uma linha curta para consola ou TXT."""
+
+    parts: list[str] = []
+
+    source_display = record.get("source_display")
+    if source_display:
+        parts.append(f"[{source_display}]")
+
+    timestamp_display = record.get("timestamp_display")
+    if timestamp_display:
+        parts.append(f"[{timestamp_display}]")
+
+    summary = record.get("summary")
+    if summary:
+        parts.append(str(summary))
+
+    return " ".join(parts)
+
+
 def open_packet_logger(path: str, log_format: str) -> PacketLogger:
     """Abre o ficheiro de log e prepara o escritor adequado."""
 
@@ -84,11 +105,8 @@ def open_packet_logger(path: str, log_format: str) -> PacketLogger:
 def format_txt_record(record: dict[str, Any]) -> str:
     """Formata uma linha TXT curta, semelhante ao output da consola."""
 
-    return (
-        f"[{record.get('packet_number', '')}] "
-        f"[{record.get('source_display', '')}] "
-        f"{record.get('summary', '')}"
-    )
+    packet_number = record.get("packet_number", "")
+    return f"[{packet_number}] {format_packet_line(record)}"
 
 
 def validate_log_path(path: str) -> Optional[str]:

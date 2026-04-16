@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
+from logging_output import format_packet_line
 from parsing import (
     FriendlyFilters,
     build_log_record,
@@ -83,8 +84,6 @@ def handle_packet(packet: Any, context: CaptureContext) -> None:
         context.writer.write(packet)
 
     summary = summarize_packet(packet)
-    print(f"{source_label(context)} {summary}")
-
     record = build_log_record(
         packet,
         context.source_type,
@@ -92,6 +91,8 @@ def handle_packet(packet: Any, context: CaptureContext) -> None:
         context.packet_count,
         summary,
     )
+    print(format_packet_line(record))
+
     update_packet_stats(context.stats_state, record)
 
     if context.packet_logger is not None:

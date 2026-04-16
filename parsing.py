@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -93,6 +94,26 @@ def extract_packet_info(packet: Any) -> dict[str, Any]:
         info["ipv4"] = ipv4_info
 
     return info
+
+
+def format_packet_timestamp(packet: Any) -> tuple[str, str]:
+    """Formata o timestamp do pacote de forma robusta.
+
+    O valor em ISO é usado nos logs estruturados. A hora curta mantém a linha
+    da consola e do TXT legível.
+    """
+
+    raw_timestamp = getattr(packet, "time", None)
+
+    try:
+        timestamp = datetime.fromtimestamp(float(raw_timestamp))
+    except (TypeError, ValueError, OverflowError, OSError):
+        timestamp = datetime.now()
+
+    return (
+        timestamp.strftime("%H:%M:%S"),
+        timestamp.isoformat(timespec="seconds"),
+    )
 
 
 def extract_ethernet_info(packet: Any) -> dict[str, Any]:
@@ -219,6 +240,7 @@ def extract_udp_info(packet: Any) -> dict[str, Any]:
         "src_port": src_port,
         "dst_port": dst_port,
         "service": guess_service("UDP", src_port, dst_port),
+        "detail": guess_udp_detail(packet),
     }
 
 
@@ -290,6 +312,73 @@ def guess_service(protocol: str, src_port: Any, dst_port: Any) -> Optional[str]:
         return "DHCP"
     if protocol == "TCP" and 80 in ports:
         return "HTTP"
+    return None
+
+
+def guess_udp_detail(packet: Any) -> Optional[str]:
+    """Reconhece apenas alguns casos UDP bem definidos."""
+
+    dns_detail = guess_dns_detail(packet)
+    if dns_detail:
+        return dns_detail
+
+    return guess_dhcp_detail(packet)
+
+
+def guess_dns_detail(packet: Any) -> Optional[str]:
+    """Distingue pedidos e respostas DNS quando a camada existe."""
+
+    try:
+        from scapy.layers.dns import DNS
+    except ModuleNotFoundError:
+        return None
+
+    if DNS not in packet:
+        return None
+
+    dns = packet[DNS]
+    qr = getattr(dns, "qr", None)
+    if qr == 0:
+        return "DNS query"
+    if qr == 1:
+        return "DNS response"
+    return "DNS"
+
+
+def guess_dhcp_detail(packet: Any) -> Optional[str]:
+    """Reconhece alguns tipos DHCP a partir das opções do pacote."""
+
+    try:
+        from scapy.layers.dhcp import DHCP
+    except ModuleNotFoundError:
+        return None
+
+    if DHCP not in packet:
+        return None
+
+    message_types = {
+        1: "DHCP Discover",
+        2: "DHCP Offer",
+        3: "DHCP Request",
+        5: "DHCP ACK",
+        "discover": "DHCP Discover",
+        "offer": "DHCP Offer",
+        "request": "DHCP Request",
+        "ack": "DHCP ACK",
+    }
+
+    options = getattr(packet[DHCP], "options", [])
+    for option in options:
+        if not (isinstance(option, tuple) and len(option) >= 2):
+            continue
+        if option[0] != "message-type":
+            continue
+
+        value = option[1]
+        if isinstance(value, str):
+            return message_types.get(value.lower())
+        return message_types.get(value)
+
     return None
 
 
@@ -366,6 +455,8 @@ def build_log_record(
 
     record: dict[str, Any] = {
         "packet_number": packet_number,
+        "timestamp": "",
+        "timestamp_display": "",
         "source_type": source_type,
         "source_name": source_name,
         "source_display": format_source_display(source_type, source_name),
@@ -379,6 +470,10 @@ def build_log_record(
         "length": "",
         "service": "",
     }
+
+    timestamp_display, timestamp_iso = format_packet_timestamp(packet)
+    record["timestamp"] = timestamp_iso
+    record["timestamp_display"] = timestamp_display
 
     try:
         info = extract_packet_info(packet)
@@ -490,6 +585,8 @@ def summarize_transport(info: dict[str, Any]) -> list[str]:
         return append_service_hint([tcp_label], info)
 
     if protocol == "UDP":
+        if info.get("detail"):
+            return ["UDP", info["detail"]]
         return append_service_hint(["UDP"], info)
 
     return [f"proto={protocol}"] if protocol else []
