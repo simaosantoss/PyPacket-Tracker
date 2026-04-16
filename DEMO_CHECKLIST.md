@@ -136,6 +136,7 @@ ping 10.0.0.2
 ```
 
 - [ ] Mostrar:
+  - linhas por pacote com timestamp;
   - parsing IPv4/ICMP;
   - eventos `ICMP reply recebido`;
   - estatísticas finais após `Ctrl+C`.
@@ -147,6 +148,7 @@ curl http://10.0.0.2
 ```
 
 - [ ] Mostrar:
+  - timestamp por pacote no output;
   - portas TCP;
   - flags `SYN`, `SYN-ACK`, `ACK`;
   - evento `TCP handshake concluído`;
@@ -159,6 +161,7 @@ sudo python3 main.py -i eth0 -c 20 --log-file core.csv --log-format csv
 ```
 
 - [ ] Abrir ou mostrar o ficheiro `core.csv`.
+- [ ] Confirmar que o log mostra timestamp por pacote.
 
 ## Demonstração numa interface real macOS
 
@@ -235,8 +238,11 @@ python3 main.py -r captura.pcap -c 10
 - `tracking.py` mantém estado simples para ARP, ICMP e TCP.
 - `logging_output.py` escreve TXT, CSV e JSON Lines.
 - `stats.py` agrega estatísticas finais.
+- Cada pacote mostrado na consola inclui timestamp.
+- Os logs TXT, CSV e JSON Lines também guardam timestamp por pacote.
 - O tracking é best effort, adequado para demonstração académica, mas não é um motor completo de flows.
 - O service hinting é conservador e baseado apenas em portas conhecidas.
+- Em UDP, quando for claro, o resumo pode distinguir casos como `DNS query`/`DNS response` e alguns tipos DHCP.
 - O projeto não faz parsing profundo de payload nem reconstrução de streams TCP.
 
 ## Plano B

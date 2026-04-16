@@ -96,6 +96,7 @@ sudo python3 main.py -i eth0 -c 10
 ```
 
 Resultado esperado: até 10 linhas de pacotes na consola, seguidas de resumo e estatísticas finais.
+Cada linha de pacote deve incluir a origem da captura, timestamp e resumo do protocolo.
 
 ## 4. Leitura offline
 
@@ -119,7 +120,7 @@ Comando:
 python3 main.py -r captura.pcap -c 10
 ```
 
-Resultado esperado: até 10 pacotes lidos do PCAP gerado, prefixados com `[offline:captura.pcap]`, seguidos de resumo e estatísticas.
+Resultado esperado: até 10 pacotes lidos do PCAP gerado, prefixados com `[offline:captura.pcap]`, cada um com timestamp e resumo do protocolo, seguidos de resumo e estatísticas.
 
 ## 5. Filtros amigáveis
 
@@ -213,7 +214,7 @@ Comando:
 python3 main.py -r captura.pcap -c 5 --log-file teste.txt --log-format txt
 ```
 
-Resultado esperado: `teste.txt` com linhas no formato `[n] [fonte] resumo`.
+Resultado esperado: `teste.txt` com linhas no formato `[n] [fonte] [hora] resumo`.
 
 ### CSV
 
@@ -225,7 +226,7 @@ Comando:
 python3 main.py -r captura.pcap -c 5 --log-file teste.csv --log-format csv
 ```
 
-Resultado esperado: `teste.csv` com cabeçalho e campos como `packet_number`, `protocol`, `src_ip`, `dst_ip`, `summary`.
+Resultado esperado: `teste.csv` com cabeçalho e campos estáveis, incluindo `timestamp`, `packet_number`, `protocol`, `src_ip`, `dst_ip` e `summary`.
 
 ### JSON Lines
 
@@ -237,7 +238,7 @@ Comando:
 python3 main.py -r captura.pcap -c 5 --log-file teste.jsonl --log-format json
 ```
 
-Resultado esperado: `teste.jsonl` com uma linha JSON por pacote.
+Resultado esperado: `teste.jsonl` com uma linha JSON por pacote, incluindo um campo `timestamp` em cada objeto.
 
 ## 9. Parsing ARP
 
@@ -311,7 +312,7 @@ Tráfego a gerar, se houver DNS disponível:
 dig example.com
 ```
 
-Resultado esperado: linhas IPv4 com `UDP` e `DNS` se houver tráfego na porta 53.
+Resultado esperado: linhas IPv4 com `UDP` e, quando o pacote o permitir de forma clara, resumos como `DNS query`, `DNS response`, `DHCP Discover`, `DHCP Offer`, `DHCP Request` ou `DHCP ACK`.
 
 ## 13. Evento ARP
 

@@ -12,10 +12,11 @@ O projeto privilegia simplicidade e legibilidade. Não pretende substituir ferra
 - Suporte de BPF bruto em modo live.
 - Escrita opcional da captura crua para `.pcap`.
 - Parsing de Ethernet, ARP, IPv4, ICMP, TCP e UDP.
-- Identificação conservadora de serviços por porta:
+- Identificação conservadora de serviços por porta e alguns casos UDP claramente reconhecíveis:
   - DNS: porta 53
   - DHCP: portas 67/68 em UDP
   - HTTP: porta 80 em TCP
+- Timestamp por pacote no output e no logging estruturado.
 - Tracking simples de estado para ARP, ICMP e TCP.
 - Logging estruturado em `txt`, `csv` e JSON Lines.
 - Estatísticas finais por protocolo, top talkers e eventos detetados.
@@ -162,6 +163,12 @@ python3 main.py -r captura.pcap --log-file captura.jsonl --log-format json
 
 O logging não substitui o output da consola. Ambos acontecem em simultâneo. Os eventos do tracker são impressos na consola, mas não são registados no ficheiro nesta versão.
 
+Cada registo inclui timestamp por pacote:
+
+- TXT: a linha textual inclui a hora do pacote.
+- CSV: existe uma coluna estável `timestamp`.
+- JSON Lines: cada objeto inclui o campo `timestamp`.
+
 ## Protocolos suportados
 
 O sniffer reconhece e resume:
@@ -171,12 +178,12 @@ O sniffer reconhece e resume:
 - IPv4: IP origem/destino, TTL, tamanho e protocolo transportado.
 - ICMP: tipo, código e nomes simples para `echo-request` e `echo-reply`.
 - TCP: portas origem/destino e flags principais (`SYN`, `ACK`, `FIN`, `RST`).
-- UDP: portas origem/destino.
+- UDP: portas origem/destino e, quando for claro, resumos curtos como `DNS query`, `DNS response`, `DHCP Discover`, `DHCP Offer`, `DHCP Request` e `DHCP ACK`.
 
 Exemplo de output:
 
 ```text
-[live:eth0] IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS | 72 bytes
+[live:en0] [14:02:10] IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
 ```
 
 ## Eventos detetados pelo tracker
