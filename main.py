@@ -28,7 +28,8 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     """Lê e interpreta os argumentos da linha de comandos."""
 
     parser = argparse.ArgumentParser(
-        description="Packet sniffer académico em Python com Scapy."
+        description="Packet sniffer em Python com Scapy.",
+        formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=45),
     )
 
     parser.add_argument(
