@@ -1,4 +1,4 @@
-"""Rastreio simples de estado para eventos ARP, ICMP e TCP."""
+"""Rastreio simples de estado para eventos ARP, ICMP, TCP e traceroute."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from parsing import format_tcp_flags
 
 
 TcpKey = tuple[str, int, str, int]
+TracerouteKey = tuple[str, str, str]
 
 
 @dataclass
@@ -18,6 +19,7 @@ class TrackerState:
     arp_requests: set[tuple[str, str]] = field(default_factory=set)
     icmp_echo_requests: set[tuple[str, str, Any, Any]] = field(default_factory=set)
     tcp_flows: dict[TcpKey, str] = field(default_factory=dict)
+    traceroute_flows: dict[TracerouteKey, dict[str, Any]] = field(default_factory=dict)
 
 
 def process_packet_for_events(packet: Any, state: TrackerState) -> list[str]:
@@ -28,6 +30,7 @@ def process_packet_for_events(packet: Any, state: TrackerState) -> list[str]:
         arp_event = process_arp_event(packet, state)
         icmp_event = process_icmp_event(packet, state)
         tcp_event = process_tcp_event(packet, state)
+        traceroute_event = process_traceroute_event(packet, state)
 
         if arp_event:
             events.append(arp_event)
@@ -35,6 +38,8 @@ def process_packet_for_events(packet: Any, state: TrackerState) -> list[str]:
             events.append(icmp_event)
         if tcp_event:
             events.append(tcp_event)
+        if traceroute_event:
+            events.append(traceroute_event)
         return events
     except Exception:
         return []
@@ -144,6 +149,67 @@ def process_tcp_event(packet: Any, state: TrackerState) -> Optional[str]:
     return None
 
 
+def process_traceroute_event(packet: Any, state: TrackerState) -> Optional[str]:
+    """Deteta um padrão simples de traceroute com TTL crescente."""
+
+    from scapy.layers.inet import IP
+
+    if IP not in packet:
+        return None
+
+    ip = packet[IP]
+    src_ip = getattr(ip, "src", None)
+    dst_ip = getattr(ip, "dst", None)
+    ttl = getattr(ip, "ttl", None)
+    protocol = normalize_transport_protocol(getattr(ip, "proto", None))
+
+    if not src_ip or not dst_ip or ttl is None or not protocol:
+        return None
+
+    key = (src_ip, dst_ip, protocol)
+    ttl = int(ttl)
+
+    # Mantém esta memória curta e focada no padrão típico de traceroute.
+    if ttl < 1 or ttl > 32:
+        state.traceroute_flows.pop(key, None)
+        return None
+
+    if len(state.traceroute_flows) > 256:
+        state.traceroute_flows.clear()
+
+    flow_state = state.traceroute_flows.get(
+        key,
+        {"last_ttl": ttl, "streak": 1, "detected": False},
+    )
+    last_ttl = flow_state["last_ttl"]
+    streak = flow_state["streak"]
+    detected = flow_state["detected"]
+
+    if ttl == last_ttl:
+        state.traceroute_flows[key] = flow_state
+        return None
+
+    if ttl == 1 or ttl < last_ttl or ttl > last_ttl + 2:
+        state.traceroute_flows[key] = {
+            "last_ttl": ttl,
+            "streak": 1,
+            "detected": False,
+        }
+        return None
+
+    streak += 1
+    flow_state["last_ttl"] = ttl
+    flow_state["streak"] = streak
+
+    if streak >= 4 and not detected:
+        flow_state["detected"] = True
+        state.traceroute_flows[key] = flow_state
+        return f"[evento] Possível traceroute detetado | {src_ip} -> {dst_ip}"
+
+    state.traceroute_flows[key] = flow_state
+    return None
+
+
 def detect_tcp_termination(flags: str) -> Optional[str]:
     """Identifica encerramento TCP por RST ou FIN."""
 
@@ -152,6 +218,13 @@ def detect_tcp_termination(flags: str) -> Optional[str]:
     if "FIN" in flags:
         return "FIN"
     return None
+
+
+def normalize_transport_protocol(value: Any) -> Optional[str]:
+    """Normaliza o protocolo IPv4 para uma etiqueta curta e estável."""
+
+    mapping = {1: "ICMP", 6: "TCP", 17: "UDP"}
+    return mapping.get(value)
 
 
 def format_tcp_key(key: TcpKey) -> str:
