@@ -381,7 +381,61 @@ Resultado esperado:
 [evento] TCP sessão terminada | 10.0.0.1:54321 -> 10.0.0.2:80 | FIN
 ```
 
-## 16. Estatísticas finais
+## 16. Possível traceroute
+
+### Cenário A: traceroute ICMP
+
+Objetivo: validar a heurística simples de possível traceroute com `traceroute -I`, que tende a ser mais limpa de demonstrar.
+
+Comando:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --protocol icmp
+```
+
+Equivalente Linux/CORE:
+
+```bash
+sudo python3 main.py -i eth0 --protocol icmp
+```
+
+Tráfego a gerar:
+
+```bash
+traceroute -I 8.8.8.8
+```
+
+Resultado esperado: pacotes ICMP relacionados com o mesmo destino, TTLs crescentes ou quase crescentes, mensagens ICMP de TTL exceeded quando surgirem e um evento como:
+
+```text
+[evento] Possível traceroute detetado | 172.26.204.185 -> 8.8.8.8
+```
+
+### Cenário B: traceroute UDP
+
+Objetivo: validar a mesma heurística em traceroute UDP tradicional.
+
+Comando:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --protocol udp
+```
+
+Equivalente Linux/CORE:
+
+```bash
+sudo python3 main.py -i eth0 --protocol udp
+```
+
+Tráfego a gerar:
+
+```bash
+traceroute 8.8.8.8
+```
+
+Resultado esperado: pacotes UDP para o mesmo destino com TTL crescente ou quase crescente e um evento como `Possível traceroute detetado`, de forma best effort.
+
+## 17. Estatísticas finais
 
 Objetivo: confirmar o relatório final.
 

@@ -17,7 +17,7 @@ O projeto privilegia simplicidade e legibilidade. Não pretende substituir ferra
   - DHCP: portas 67/68 em UDP
   - HTTP: porta 80 em TCP
 - Timestamp por pacote no output e no logging estruturado.
-- Tracking simples de estado para ARP, ICMP e TCP.
+- Tracking simples de estado para ARP, ICMP, TCP e deteção heurística de possível traceroute.
 - Logging estruturado em `txt`, `csv` e JSON Lines.
 - Estatísticas finais por protocolo, top talkers e eventos detetados.
 
@@ -27,7 +27,7 @@ O projeto privilegia simplicidade e legibilidade. Não pretende substituir ferra
 main.py            CLI, validação de argumentos e resumo final
 capture.py         captura live/offline e callback por pacote
 parsing.py         parsing, filtros amigáveis e resumos de pacotes
-tracking.py        rastreio simples de ARP, ICMP e TCP
+tracking.py        rastreio simples de ARP, ICMP, TCP e possível traceroute
 logging_output.py  escrita de logs em txt, csv e json
 stats.py           estatísticas finais da execução
 ```
@@ -214,6 +214,12 @@ O tracker mantém estado simples em memória e deteta eventos best effort:
 [evento] TCP sessão terminada | 10.0.0.1:54321 -> 10.0.0.2:80 | FIN
 ```
 
+- Possível traceroute detetado por heurística simples de TTL crescente:
+
+```text
+[evento] Possível traceroute detetado | 172.26.204.185 -> 8.8.8.8
+```
+
 ## Estatísticas finais
 
 No fim da execução, incluindo quando a captura é interrompida com `Ctrl+C`, o programa imprime:
@@ -290,6 +296,7 @@ python3 main.py -r captura.pcap --log-file captura.jsonl --log-format json
 - Não reconstrói streams TCP.
 - Não implementa timeouts avançados para o estado do tracker.
 - O tracking é best effort e depende da ordem dos pacotes observados.
+- A deteção de possível traceroute é heurística, baseada num padrão de TTL crescente, e não identifica de forma perfeita todos os traceroutes.
 - BPF bruto está limitado ao modo live.
 - O modo offline aplica apenas filtros amigáveis.
 - Não há deteção agressiva de protocolos de aplicação; os serviços são sugeridos apenas por portas conhecidas.
@@ -317,9 +324,10 @@ sudo python3 main.py -i eth0
 ```bash
 ping 10.0.0.2
 curl http://10.0.0.2
+traceroute -I 8.8.8.8
 ```
 
-6. Observar pacotes, eventos ICMP/TCP e estatísticas finais.
+6. Observar pacotes, eventos ICMP/TCP, possível traceroute e estatísticas finais.
 
 Também é possível guardar logs:
 
@@ -363,4 +371,28 @@ sudo python3 main.py -i eth0 --protocol icmp
 sudo python3 main.py -i eth0 --bpf "tcp port 80"
 ```
 
-5. Interromper com `Ctrl+C` para ver o resumo final quando não for usado `--count` ou `--timeout`.
+5. Para demonstrar a heurística de possível traceroute, a variante ICMP tende a ser mais limpa de observar e explicar:
+
+macOS:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --protocol icmp
+traceroute -I 8.8.8.8
+```
+
+Linux:
+
+```bash
+sudo python3 main.py -i eth0 --protocol icmp
+traceroute -I 8.8.8.8
+```
+
+Também é possível observar a variante UDP:
+
+```bash
+traceroute 8.8.8.8
+```
+
+Resultado esperado: pacotes com TTL crescente e um evento como `Possível traceroute detetado`, de forma best effort.
+
+6. Interromper com `Ctrl+C` para ver o resumo final quando não for usado `--count` ou `--timeout`.

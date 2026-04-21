@@ -246,6 +246,44 @@ Captura live com log JSON:
 sudo .venv/bin/python main.py -i en0 --timeout 30 --log-file live.jsonl --log-format json
 ```
 
+## Traceroute
+
+A variante ICMP com `traceroute -I` tende a ser mais limpa para demonstração, porque é mais fácil observar e explicar o padrão de TTL crescente.
+
+macOS, traceroute ICMP:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --protocol icmp
+traceroute -I 8.8.8.8
+```
+
+macOS, traceroute UDP:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --protocol udp
+traceroute 8.8.8.8
+```
+
+Linux/CORE, traceroute ICMP:
+
+```bash
+sudo python3 main.py -i eth0 --protocol icmp
+traceroute -I 8.8.8.8
+```
+
+Linux/CORE, traceroute UDP:
+
+```bash
+sudo python3 main.py -i eth0 --protocol udp
+traceroute 8.8.8.8
+```
+
+Evento que pode surgir:
+
+```text
+[evento] Possível traceroute detetado | 172.26.204.185 -> 8.8.8.8
+```
+
 ## Tráfego para gerar durante testes
 
 Gerar ICMP:
@@ -288,6 +326,18 @@ ou:
 
 ```bash
 nslookup example.com
+```
+
+Gerar traceroute ICMP:
+
+```bash
+traceroute -I 8.8.8.8
+```
+
+Gerar traceroute UDP:
+
+```bash
+traceroute 8.8.8.8
 ```
 
 ## Exemplos para CORE ou Linux

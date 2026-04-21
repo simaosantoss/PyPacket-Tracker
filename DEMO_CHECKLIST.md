@@ -99,6 +99,13 @@ Filtro ICMP:
 sudo .venv/bin/python main.py -i en0 --protocol icmp
 ```
 
+Traceroute ICMP:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --protocol icmp
+traceroute -I 8.8.8.8
+```
+
 Filtro TCP com BPF:
 
 ```bash
@@ -139,6 +146,7 @@ ping 10.0.0.2
   - linhas por pacote com timestamp;
   - parsing IPv4/ICMP;
   - eventos `ICMP reply recebido`;
+  - eventual evento `Possível traceroute detetado`, quando o padrão de TTL crescente surgir;
   - estatísticas finais após `Ctrl+C`.
 
 - [ ] Gerar TCP, se houver um serviço HTTP no destino:
@@ -162,6 +170,7 @@ sudo python3 main.py -i eth0 -c 20 --log-file core.csv --log-format csv
 
 - [ ] Abrir ou mostrar o ficheiro `core.csv`.
 - [ ] Confirmar que o log mostra timestamp por pacote.
+- [ ] Se for útil para a defesa, correr `traceroute -I 8.8.8.8` e mostrar o evento `Possível traceroute detetado`.
 
 ## Demonstração numa interface real macOS
 
@@ -188,6 +197,13 @@ ping 8.8.8.8
 
 ```bash
 sudo .venv/bin/python main.py -i en0 --bpf "tcp port 80"
+```
+
+- [ ] Demonstrar possível traceroute com a variante ICMP, que tende a ser mais limpa:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --protocol icmp
+traceroute -I 8.8.8.8
 ```
 
 - [ ] Demonstrar escrita para PCAP. Se `captura.pcap` ainda não existir, este é o passo que o cria:
@@ -217,6 +233,13 @@ sudo python3 main.py -i eth0 --timeout 30
 sudo python3 main.py -i eth0 --protocol icmp
 ```
 
+- [ ] Demonstrar possível traceroute com a variante ICMP:
+
+```bash
+sudo python3 main.py -i eth0 --protocol icmp
+traceroute -I 8.8.8.8
+```
+
 - [ ] Demonstrar escrita para PCAP, caso ainda não exista um ficheiro para modo offline:
 
 ```bash
@@ -235,12 +258,14 @@ python3 main.py -r captura.pcap -c 10
 - `main.py` trata da CLI e validação.
 - `capture.py` trata da captura live/offline e do callback.
 - `parsing.py` faz desencapsulamento e resumos.
-- `tracking.py` mantém estado simples para ARP, ICMP e TCP.
+- `tracking.py` mantém estado simples para ARP, ICMP, TCP e possível traceroute.
 - `logging_output.py` escreve TXT, CSV e JSON Lines.
 - `stats.py` agrega estatísticas finais.
 - Cada pacote mostrado na consola inclui timestamp.
 - Os logs TXT, CSV e JSON Lines também guardam timestamp por pacote.
 - O tracking é best effort, adequado para demonstração académica, mas não é um motor completo de flows.
+- A deteção de possível traceroute usa uma heurística simples baseada em TTL crescente.
+- É possível observar traceroute em UDP ou em ICMP com `traceroute -I`; a variante ICMP tende a ser mais limpa para demonstrar.
 - O service hinting é conservador e baseado apenas em portas conhecidas.
 - Em UDP, quando for claro, o resumo pode distinguir casos como `DNS query`/`DNS response` e alguns tipos DHCP.
 - O projeto não faz parsing profundo de payload nem reconstrução de streams TCP.
