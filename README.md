@@ -12,6 +12,8 @@ O projeto privilegia simplicidade e legibilidade. Não pretende substituir ferra
 - Suporte de BPF bruto em modo live.
 - Escrita opcional da captura crua para `.pcap`.
 - Parsing de Ethernet, ARP, IPv4, ICMP, TCP e UDP.
+- Deteção simples de fragmentação IPv4, com campos relevantes no resumo e no logging.
+- Acompanhamento lógico de conjuntos de fragmentos IPv4 e deteção de conjuntos que parecem completos.
 - Identificação conservadora de serviços por porta e alguns casos UDP claramente reconhecíveis:
   - DNS: porta 53
   - DHCP: portas 67/68 em UDP
@@ -27,7 +29,7 @@ O projeto privilegia simplicidade e legibilidade. Não pretende substituir ferra
 main.py            CLI, validação de argumentos e resumo final
 capture.py         captura live/offline e callback por pacote
 parsing.py         parsing, filtros amigáveis e resumos de pacotes
-tracking.py        rastreio simples de ARP, ICMP, TCP e possível traceroute
+tracking.py        rastreio simples de ARP, ICMP, TCP, possível traceroute e fragmentação IPv4
 logging_output.py  escrita de logs em txt, csv e json
 stats.py           estatísticas finais da execução
 ```
@@ -168,6 +170,7 @@ Cada registo inclui timestamp por pacote:
 - TXT: a linha textual inclui a hora do pacote.
 - CSV: existe uma coluna estável `timestamp`.
 - JSON Lines: cada objeto inclui o campo `timestamp`.
+- Quando aplicável, TXT/CSV/JSON também podem incluir `ip_id`, `fragment_offset` e `more_fragments`.
 
 ## Protocolos suportados
 
@@ -175,7 +178,7 @@ O sniffer reconhece e resume:
 
 - Ethernet: MAC origem, MAC destino e EtherType.
 - ARP: operação, IP origem/destino e MAC origem/destino.
-- IPv4: IP origem/destino, TTL, tamanho e protocolo transportado.
+- IPv4: IP origem/destino, TTL, tamanho, protocolo transportado e, quando aplicável, identificação (`id`), fragment offset e flag `MF` / more fragments.
 - ICMP: tipo, código e nomes simples para `echo-request` e `echo-reply`.
 - TCP: portas origem/destino e flags principais (`SYN`, `ACK`, `FIN`, `RST`).
 - UDP: portas origem/destino e, quando for claro, resumos curtos como `DNS query`, `DNS response`, `DHCP Discover`, `DHCP Offer`, `DHCP Request` e `DHCP ACK`.
@@ -218,6 +221,12 @@ O tracker mantém estado simples em memória e deteta eventos best effort:
 
 ```text
 [evento] Possível traceroute detetado | 172.26.204.185 -> 8.8.8.8
+```
+
+- Fragmentos IPv4 observados de forma suficiente para um datagrama que parece completo:
+
+```text
+[evento] Fragmentos IPv4 completos | 192.168.1.10 -> 8.8.8.8 | id=12345
 ```
 
 ## Estatísticas finais
@@ -294,9 +303,11 @@ python3 main.py -r captura.pcap --log-file captura.jsonl --log-format json
 
 - Não faz parsing profundo de payload de aplicação.
 - Não reconstrói streams TCP.
+- Não existe reconstrução binária completa do payload para fragmentação IPv4.
 - Não implementa timeouts avançados para o estado do tracker.
 - O tracking é best effort e depende da ordem dos pacotes observados.
 - A deteção de possível traceroute é heurística, baseada num padrão de TTL crescente, e não identifica de forma perfeita todos os traceroutes.
+- A deteção de um datagrama IPv4 "completo" é uma heurística simples baseada apenas nos fragmentos observados.
 - BPF bruto está limitado ao modo live.
 - O modo offline aplica apenas filtros amigáveis.
 - Não há deteção agressiva de protocolos de aplicação; os serviços são sugeridos apenas por portas conhecidas.
@@ -334,6 +345,8 @@ Também é possível guardar logs:
 ```bash
 sudo python3 main.py -i eth0 --log-file core.csv --log-format csv
 ```
+
+Para demonstrar fragmentação IPv4, uma abordagem simples e fiável é abrir um PCAP preparado com fragmentos, por exemplo `fragmentado.pcap`. Em modo live, também se pode tentar gerar tráfego grande com `ping`, quando o sistema, a rede e o MTU o permitirem.
 
 ### Numa interface real
 
@@ -394,5 +407,14 @@ traceroute 8.8.8.8
 ```
 
 Resultado esperado: pacotes com TTL crescente e um evento como `Possível traceroute detetado`, de forma best effort.
+
+Também se pode demonstrar fragmentação IPv4:
+
+```bash
+python3 main.py -r fragmentado.pcap
+python3 main.py -r fragmentado.pcap --log-file fragmentado.csv --log-format csv
+```
+
+Ou, quando a rede o permitir, tentar gerar fragmentação live com um `ping` de payload grande. Neste caso, o esperado é observar campos como `id=...`, `offset=...` e `MF`, além do evento `Fragmentos IPv4 completos`, sem reconstrução profunda de payload.
 
 6. Interromper com `Ctrl+C` para ver o resumo final quando não for usado `--count` ou `--timeout`.

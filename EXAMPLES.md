@@ -246,6 +246,46 @@ Captura live com log JSON:
 sudo .venv/bin/python main.py -i en0 --timeout 30 --log-file live.jsonl --log-format json
 ```
 
+## Fragmentação IPv4
+
+Leitura offline de um PCAP com fragmentação IPv4:
+
+```bash
+python3 main.py -r fragmentado.pcap
+```
+
+Leitura offline com logging CSV:
+
+```bash
+python3 main.py -r fragmentado.pcap --log-file fragmentado.csv --log-format csv
+```
+
+Teste live, quando a rede e o MTU o permitirem:
+
+```bash
+sudo .venv/bin/python main.py -i en0
+ping -s 4000 8.8.8.8
+```
+
+ou, em Linux/CORE:
+
+```bash
+sudo python3 main.py -i eth0
+ping -s 4000 8.8.8.8
+```
+
+Exemplo de output:
+
+```text
+IPv4 | 10.0.0.1 -> 10.0.0.2 | ttl=64 | id=12345 | offset=1400 | MF | proto=UDP
+```
+
+Exemplo de evento:
+
+```text
+[evento] Fragmentos IPv4 completos | 10.0.0.1 -> 10.0.0.2 | id=12345
+```
+
 ## Traceroute
 
 A variante ICMP com `traceroute -I` tende a ser mais limpa para demonstração, porque é mais fácil observar e explicar o padrão de TTL crescente.
@@ -374,6 +414,12 @@ Guardar PCAP no CORE:
 
 ```bash
 sudo python3 main.py -i eth0 -c 50 --write-pcap core.pcap
+```
+
+Ler um PCAP com fragmentação IPv4 no CORE/Linux:
+
+```bash
+python3 main.py -r fragmentado.pcap
 ```
 
 ## Erros esperados úteis para demonstrar validação

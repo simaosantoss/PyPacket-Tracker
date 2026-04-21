@@ -435,7 +435,60 @@ traceroute 8.8.8.8
 
 Resultado esperado: pacotes UDP para o mesmo destino com TTL crescente ou quase crescente e um evento como `Possível traceroute detetado`, de forma best effort.
 
-## 17. Estatísticas finais
+## 17. Fragmentação IPv4
+
+Objetivo: validar a identificação simples de fragmentos IPv4, o agrupamento lógico por datagrama e o evento de fragmentos que parecem completos.
+
+### Cenário A: PCAP gerado com Scapy
+
+Comando:
+
+```bash
+python3 main.py -r fragmentado.pcap
+```
+
+Comando opcional com logging CSV:
+
+```bash
+python3 main.py -r fragmentado.pcap --log-file fragmentado.csv --log-format csv
+```
+
+Forma prática de preparar o teste: usar um PCAP gerado previamente com Scapy contendo um datagrama IPv4 fragmentado. Esta é a forma mais fiável de validar a funcionalidade.
+
+Resultado esperado:
+
+- linhas IPv4 com campos como `id=...`, `offset=...` e `MF` quando aplicável;
+- evento como:
+
+```text
+[evento] Fragmentos IPv4 completos | 192.168.1.10 -> 8.8.8.8 | id=12345
+```
+
+- se houver logging CSV, presença das colunas `ip_id`, `fragment_offset` e `more_fragments`.
+
+### Cenário B: teste live opcional
+
+Comando:
+
+```bash
+sudo .venv/bin/python main.py -i en0
+```
+
+Equivalente Linux/CORE:
+
+```bash
+sudo python3 main.py -i eth0
+```
+
+Tráfego a gerar, quando o sistema, a rede e o MTU o permitirem:
+
+```bash
+ping -s 4000 8.8.8.8
+```
+
+Resultado esperado: podem surgir fragmentos IPv4 com `id=...`, `offset=...` e `MF`, além do evento `Fragmentos IPv4 completos`. Este teste é prudente e dependente do ambiente; o cenário com PCAP continua a ser o mais fiável.
+
+## 18. Estatísticas finais
 
 Objetivo: confirmar o relatório final.
 
