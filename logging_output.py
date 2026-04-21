@@ -23,6 +23,9 @@ CSV_FIELDS = [
     "dst_port",
     "ttl",
     "length",
+    "ip_id",
+    "fragment_offset",
+    "more_fragments",
     "service",
     "summary",
 ]

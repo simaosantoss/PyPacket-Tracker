@@ -162,6 +162,10 @@ def extract_ipv4_info(packet: Any) -> dict[str, Any]:
     proto = getattr(ipv4, "proto", None)
     protocol = IP_PROTOCOL_NAMES.get(proto, str(proto) if proto is not None else None)
     transport_info = extract_transport_info(packet, protocol)
+    identification = getattr(ipv4, "id", None)
+    fragment_offset = get_fragment_offset_bytes(ipv4)
+    more_fragments = has_more_fragments(ipv4)
+    is_fragmented = fragment_offset > 0 or more_fragments
 
     return {
         "src_ip": getattr(ipv4, "src", None),
@@ -169,6 +173,10 @@ def extract_ipv4_info(packet: Any) -> dict[str, Any]:
         "ttl": getattr(ipv4, "ttl", None),
         "length": getattr(ipv4, "len", None),
         "protocol": protocol,
+        "ip_id": identification,
+        "fragment_offset": fragment_offset,
+        "more_fragments": more_fragments,
+        "is_fragmented": is_fragmented,
         "transport": transport_info,
     }
 
@@ -277,6 +285,23 @@ def format_icmp_name(icmp_type: Any, icmp_code: Any) -> Optional[str]:
     if icmp_type == 0 and icmp_code == 0:
         return "echo-reply"
     return None
+
+
+def get_fragment_offset_bytes(ipv4: Any) -> int:
+    """Converte o offset IPv4 para bytes."""
+
+    fragment_offset = getattr(ipv4, "frag", 0)
+    try:
+        return int(fragment_offset) * 8
+    except (TypeError, ValueError):
+        return 0
+
+
+def has_more_fragments(ipv4: Any) -> bool:
+    """Indica se a flag MF está ativa."""
+
+    flags = getattr(ipv4, "flags", "")
+    return "MF" in str(flags)
 
 
 def format_tcp_flags(flags: Any) -> Optional[str]:
@@ -468,6 +493,9 @@ def build_log_record(
         "dst_port": "",
         "ttl": "",
         "length": "",
+        "ip_id": "",
+        "fragment_offset": "",
+        "more_fragments": "",
         "service": "",
     }
 
@@ -512,6 +540,13 @@ def fill_ipv4_log_record(record: dict[str, Any], info: dict[str, Any]) -> None:
     record["dst_ip"] = info.get("dst_ip") or ""
     record["ttl"] = info.get("ttl") if info.get("ttl") is not None else ""
     record["length"] = info.get("length") if info.get("length") is not None else ""
+    record["ip_id"] = info.get("ip_id") if info.get("ip_id") is not None else ""
+    record["fragment_offset"] = (
+        info.get("fragment_offset") if info.get("fragment_offset") is not None else ""
+    )
+    record["more_fragments"] = (
+        info.get("more_fragments") if info.get("more_fragments") is not None else ""
+    )
     record["src_port"] = (
         transport.get("src_port") if transport.get("src_port") is not None else ""
     )
@@ -552,6 +587,12 @@ def summarize_ipv4(info: dict[str, Any]) -> str:
         parts.append(ip_flow)
     if info.get("ttl") is not None:
         parts.append(f"ttl={info['ttl']}")
+    if info.get("is_fragmented"):
+        if info.get("ip_id") is not None:
+            parts.append(f"id={info['ip_id']}")
+        parts.append(f"offset={info.get('fragment_offset', 0)}")
+        if info.get("more_fragments"):
+            parts.append("MF")
 
     transport = info.get("transport", {})
     if transport:

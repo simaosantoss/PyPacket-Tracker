@@ -1,4 +1,4 @@
-"""Rastreio simples de estado para eventos ARP, ICMP, TCP e traceroute."""
+"""Rastreio simples de estado para eventos ARP, ICMP, TCP, traceroute e fragmentação."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from parsing import format_tcp_flags
 
 TcpKey = tuple[str, int, str, int]
 TracerouteKey = tuple[str, str, str]
+FragmentKey = tuple[str, str, int, Any]
 
 
 @dataclass
@@ -20,6 +21,7 @@ class TrackerState:
     icmp_echo_requests: set[tuple[str, str, Any, Any]] = field(default_factory=set)
     tcp_flows: dict[TcpKey, str] = field(default_factory=dict)
     traceroute_flows: dict[TracerouteKey, dict[str, Any]] = field(default_factory=dict)
+    ipv4_fragments: dict[FragmentKey, dict[str, Any]] = field(default_factory=dict)
 
 
 def process_packet_for_events(packet: Any, state: TrackerState) -> list[str]:
@@ -31,6 +33,7 @@ def process_packet_for_events(packet: Any, state: TrackerState) -> list[str]:
         icmp_event = process_icmp_event(packet, state)
         tcp_event = process_tcp_event(packet, state)
         traceroute_event = process_traceroute_event(packet, state)
+        fragment_event = process_ipv4_fragment_event(packet, state)
 
         if arp_event:
             events.append(arp_event)
@@ -40,6 +43,8 @@ def process_packet_for_events(packet: Any, state: TrackerState) -> list[str]:
             events.append(tcp_event)
         if traceroute_event:
             events.append(traceroute_event)
+        if fragment_event:
+            events.append(fragment_event)
         return events
     except Exception:
         return []
@@ -210,6 +215,66 @@ def process_traceroute_event(packet: Any, state: TrackerState) -> Optional[str]:
     return None
 
 
+def process_ipv4_fragment_event(packet: Any, state: TrackerState) -> Optional[str]:
+    """Agrupa fragmentos IPv4 e emite um evento quando o conjunto parece completo."""
+
+    from scapy.layers.inet import IP
+
+    if IP not in packet:
+        return None
+
+    ip = packet[IP]
+    src_ip = getattr(ip, "src", None)
+    dst_ip = getattr(ip, "dst", None)
+    identification = getattr(ip, "id", None)
+    protocol = getattr(ip, "proto", None)
+    offset = get_fragment_offset_bytes(ip)
+    more_fragments = has_more_fragments(ip)
+
+    if (
+        src_ip is None
+        or dst_ip is None
+        or identification is None
+        or protocol is None
+        or (offset == 0 and not more_fragments)
+    ):
+        return None
+
+    payload_length = get_ipv4_payload_length(ip)
+    if payload_length <= 0:
+        return None
+
+    if len(state.ipv4_fragments) > 256:
+        state.ipv4_fragments.clear()
+
+    key = (src_ip, dst_ip, int(identification), protocol)
+    fragment_state = state.ipv4_fragments.setdefault(
+        key,
+        {
+            "ranges": set(),
+            "expected_total": None,
+            "completed": False,
+        },
+    )
+    fragment_state["ranges"].add((offset, offset + payload_length))
+
+    if not more_fragments:
+        fragment_state["expected_total"] = offset + payload_length
+
+    if fragment_state["completed"] or fragment_state["expected_total"] is None:
+        return None
+
+    expected_total = fragment_state["expected_total"]
+    if ranges_cover_total(fragment_state["ranges"], expected_total):
+        fragment_state["completed"] = True
+        return (
+            f"[evento] Fragmentos IPv4 completos | {src_ip} -> {dst_ip} "
+            f"| id={identification}"
+        )
+
+    return None
+
+
 def detect_tcp_termination(flags: str) -> Optional[str]:
     """Identifica encerramento TCP por RST ou FIN."""
 
@@ -225,6 +290,59 @@ def normalize_transport_protocol(value: Any) -> Optional[str]:
 
     mapping = {1: "ICMP", 6: "TCP", 17: "UDP"}
     return mapping.get(value)
+
+
+def get_fragment_offset_bytes(ip: Any) -> int:
+    """Converte o offset do cabeçalho IPv4 para bytes."""
+
+    fragment_offset = getattr(ip, "frag", 0)
+    try:
+        return int(fragment_offset) * 8
+    except (TypeError, ValueError):
+        return 0
+
+
+def has_more_fragments(ip: Any) -> bool:
+    """Indica se a flag MF está ativa."""
+
+    return "MF" in str(getattr(ip, "flags", ""))
+
+
+def get_ipv4_payload_length(ip: Any) -> int:
+    """Obtém o comprimento do payload IPv4 sem reconstrução profunda."""
+
+    total_length = getattr(ip, "len", None)
+    header_length = getattr(ip, "ihl", None)
+
+    try:
+        if total_length is not None and header_length is not None:
+            return max(int(total_length) - int(header_length) * 4, 0)
+    except (TypeError, ValueError):
+        pass
+
+    try:
+        return len(bytes(ip.payload))
+    except Exception:
+        return 0
+
+
+def ranges_cover_total(ranges: set[tuple[int, int]], expected_total: int) -> bool:
+    """Verifica se os intervalos observados cobrem todo o datagrama esperado."""
+
+    if not ranges or expected_total <= 0:
+        return False
+
+    ordered_ranges = sorted(ranges)
+    coverage_end = 0
+
+    for start, end in ordered_ranges:
+        if start > coverage_end:
+            return False
+        coverage_end = max(coverage_end, end)
+        if coverage_end >= expected_total:
+            return True
+
+    return False
 
 
 def format_tcp_key(key: TcpKey) -> str:
