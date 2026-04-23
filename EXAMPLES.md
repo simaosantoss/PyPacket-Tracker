@@ -13,8 +13,8 @@ Isto garante que o Python executado com `sudo` usa o Scapy instalado na virtuale
 As linhas mostradas na consola incluem agora o prefixo da fonte e um timestamp curto por pacote, por exemplo:
 
 ```text
-[live:en0] [14:02:10] IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
-[offline:captura.pcap] [14:05:31] ARP | request | 10.0.0.1 -> 10.0.0.2 | aa:bb:cc:dd:ee:ff -> ff:ff:ff:ff:ff:ff
+[live:en0] [14:02:10] Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
+[offline:captura.pcap] [14:05:31] Ethernet | ARP | request | 10.0.0.1 -> 10.0.0.2 | aa:bb:cc:dd:ee:ff -> ff:ff:ff:ff:ff:ff
 ```
 
 ## Fluxo prático completo em macOS
@@ -222,16 +222,16 @@ python3 main.py -r captura.pcap --log-file captura.jsonl --log-format json
 Exemplos curtos de registos:
 
 ```text
-[12] [live:en0] [14:02:10] IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
+[12] [live:en0] [14:02:10] Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
 ```
 
 ```csv
-packet_number,timestamp,source_type,source_name,protocol,src_ip,dst_ip,src_port,dst_port,ttl,length,service,summary
-12,2026-04-16T14:02:10,live,en0,UDP,10.0.0.1,8.8.8.8,53000,53,64,72,DNS,IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
+packet_number,timestamp,source_type,source_name,protocol,src_ip,dst_ip,src_port,dst_port,ttl,length,ip_id,fragment_offset,more_fragments,service,summary
+12,2026-04-16T14:02:10,live,en0,UDP,10.0.0.1,8.8.8.8,53000,53,64,72,54321,0,False,DNS,Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
 ```
 
 ```json
-{"packet_number":12,"timestamp":"2026-04-16T14:02:10","timestamp_display":"14:02:10","source_type":"live","source_name":"en0","source_display":"live:en0","protocol":"UDP","src_ip":"10.0.0.1","dst_ip":"8.8.8.8","src_port":53000,"dst_port":53,"ttl":64,"length":72,"service":"DNS","summary":"IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes"}
+{"packet_number":12,"timestamp":"2026-04-16T14:02:10","timestamp_display":"14:02:10","source_type":"live","source_name":"en0","source_display":"live:en0","protocol":"UDP","src_ip":"10.0.0.1","dst_ip":"8.8.8.8","src_port":53000,"dst_port":53,"ttl":64,"length":72,"ip_id":54321,"fragment_offset":0,"more_fragments":false,"service":"DNS","summary":"Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes"}
 ```
 
 Captura live com log CSV:
@@ -277,7 +277,7 @@ ping -s 4000 8.8.8.8
 Exemplo de output:
 
 ```text
-IPv4 | 10.0.0.1 -> 10.0.0.2 | ttl=64 | id=12345 | offset=1400 | MF | proto=UDP
+Ethernet | IPv4 | 10.0.0.1 -> 10.0.0.2 | ttl=64 | id=12345 | offset=1400 | MF | proto=UDP
 ```
 
 Exemplo de evento:

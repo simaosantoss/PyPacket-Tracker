@@ -458,15 +458,23 @@ def summarize_packet(packet: Any) -> str:
         return "Outro | pacote incompleto ou não suportado nesta fase"
 
     if "arp" in info:
-        return summarize_arp(info["arp"])
+        return add_link_layer_prefix(info, summarize_arp(info["arp"]))
     if "ipv4" in info:
-        return summarize_ipv4(info["ipv4"])
+        return add_link_layer_prefix(info, summarize_ipv4(info["ipv4"]))
 
     ethernet_info = info.get("ethernet", {})
     ethertype = ethernet_info.get("ethertype")
     if ethertype:
-        return f"Outro | ethertype={ethertype} | tipo não suportado nesta fase"
+        return f"Ethernet | Outro | ethertype={ethertype} | tipo não suportado nesta fase"
     return "Outro | tipo não suportado nesta fase"
+
+
+def add_link_layer_prefix(info: dict[str, Any], summary: str) -> str:
+    """Acrescenta Ethernet ao início do resumo quando a camada existe."""
+
+    if "ethernet" in info:
+        return f"Ethernet | {summary}"
+    return summary
 
 
 def build_log_record(

@@ -186,7 +186,7 @@ O sniffer reconhece e resume:
 Exemplo de output:
 
 ```text
-[live:en0] [14:02:10] IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
+[live:en0] [14:02:10] Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
 ```
 
 ## Eventos detetados pelo tracker
