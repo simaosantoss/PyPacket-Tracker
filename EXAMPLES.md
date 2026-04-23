@@ -107,6 +107,18 @@ Filtro por IP:
 sudo .venv/bin/python main.py -i en0 --ip 10.0.0.1
 ```
 
+Filtro por IP de origem:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --src-ip 10.0.0.1
+```
+
+Filtro por IP de destino:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --dst-ip 8.8.8.8
+```
+
 Filtro por MAC:
 
 ```bash
@@ -137,10 +149,46 @@ Filtro por UDP:
 sudo .venv/bin/python main.py -i en0 --protocol udp
 ```
 
+Filtro por porta de origem:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --src-port 53000
+```
+
+Filtro por porta de destino:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --dst-port 53 --protocol udp
+```
+
+Filtro por pacotes IPv4 fragmentados:
+
+```bash
+python3 main.py -r fragmentado.pcap --fragmented
+```
+
+Filtro por identificador IPv4:
+
+```bash
+python3 main.py -r fragmentado.pcap --ip-id 12345
+```
+
+Filtro por pacotes com MF ativa:
+
+```bash
+python3 main.py -r fragmentado.pcap --mf-only
+```
+
 Combinar filtros amigáveis:
 
 ```bash
 sudo .venv/bin/python main.py -i en0 --ip 10.0.0.1 --protocol tcp
+```
+
+Combinar IP de origem, porta de destino e protocolo:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --src-ip 10.0.0.1 --dst-port 53 --protocol udp
 ```
 
 ## BPF bruto em modo live

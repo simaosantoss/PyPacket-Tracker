@@ -18,8 +18,15 @@ class FriendlyFilters:
     """Agrupa os filtros simples que podem ser avaliados diretamente em Python."""
 
     ip: Optional[str] = None
+    src_ip: Optional[str] = None
+    dst_ip: Optional[str] = None
     mac: Optional[str] = None
     protocol: Optional[str] = None
+    src_port: Optional[int] = None
+    dst_port: Optional[int] = None
+    fragmented: bool = False
+    ip_id: Optional[int] = None
+    mf_only: bool = False
 
 
 def packet_matches_friendly_filters(
@@ -30,12 +37,43 @@ def packet_matches_friendly_filters(
     if friendly_filters.ip and not packet_matches_ip(packet, friendly_filters.ip):
         return False
 
+    if friendly_filters.src_ip and not packet_matches_src_ip(
+        packet, friendly_filters.src_ip
+    ):
+        return False
+
+    if friendly_filters.dst_ip and not packet_matches_dst_ip(
+        packet, friendly_filters.dst_ip
+    ):
+        return False
+
     if friendly_filters.mac and not packet_matches_mac(packet, friendly_filters.mac):
         return False
 
     if friendly_filters.protocol and not packet_matches_protocol(
         packet, friendly_filters.protocol
     ):
+        return False
+
+    if friendly_filters.src_port is not None and not packet_matches_src_port(
+        packet, friendly_filters.src_port
+    ):
+        return False
+
+    if friendly_filters.dst_port is not None and not packet_matches_dst_port(
+        packet, friendly_filters.dst_port
+    ):
+        return False
+
+    if friendly_filters.fragmented and not packet_matches_fragmented(packet):
+        return False
+
+    if friendly_filters.ip_id is not None and not packet_matches_ip_id(
+        packet, friendly_filters.ip_id
+    ):
+        return False
+
+    if friendly_filters.mf_only and not packet_matches_mf_only(packet):
         return False
 
     return True
@@ -49,6 +87,22 @@ def packet_matches_ip(packet: Any, ip_address: str) -> bool:
     return IP in packet and (
         packet[IP].src == ip_address or packet[IP].dst == ip_address
     )
+
+
+def packet_matches_src_ip(packet: Any, ip_address: str) -> bool:
+    """Verifica se o pacote tem o IP indicado como origem."""
+
+    from scapy.layers.inet import IP
+
+    return IP in packet and packet[IP].src == ip_address
+
+
+def packet_matches_dst_ip(packet: Any, ip_address: str) -> bool:
+    """Verifica se o pacote tem o IP indicado como destino."""
+
+    from scapy.layers.inet import IP
+
+    return IP in packet and packet[IP].dst == ip_address
 
 
 def packet_matches_mac(packet: Any, mac_address: str) -> bool:
@@ -76,6 +130,60 @@ def packet_matches_protocol(packet: Any, protocol: str) -> bool:
         "udp": UDP,
     }
     return protocol_layers[protocol] in packet
+
+
+def packet_matches_src_port(packet: Any, port: int) -> bool:
+    """Verifica se o pacote TCP/UDP usa a porta indicada como origem."""
+
+    ports = extract_transport_ports(packet)
+    return ports is not None and ports[0] == port
+
+
+def packet_matches_dst_port(packet: Any, port: int) -> bool:
+    """Verifica se o pacote TCP/UDP usa a porta indicada como destino."""
+
+    ports = extract_transport_ports(packet)
+    return ports is not None and ports[1] == port
+
+
+def packet_matches_fragmented(packet: Any) -> bool:
+    """Verifica se o pacote IPv4 está fragmentado."""
+
+    from scapy.layers.inet import IP
+
+    if IP not in packet:
+        return False
+
+    ipv4 = packet[IP]
+    return get_fragment_offset_bytes(ipv4) > 0 or has_more_fragments(ipv4)
+
+
+def packet_matches_ip_id(packet: Any, ip_id: int) -> bool:
+    """Verifica se o pacote IPv4 tem o identificador pedido."""
+
+    from scapy.layers.inet import IP
+
+    return IP in packet and getattr(packet[IP], "id", None) == ip_id
+
+
+def packet_matches_mf_only(packet: Any) -> bool:
+    """Verifica se o pacote IPv4 tem a flag MF ativa."""
+
+    from scapy.layers.inet import IP
+
+    return IP in packet and has_more_fragments(packet[IP])
+
+
+def extract_transport_ports(packet: Any) -> Optional[tuple[Any, Any]]:
+    """Extrai portas TCP/UDP quando a camada existe."""
+
+    from scapy.layers.inet import TCP, UDP
+
+    if TCP in packet:
+        return getattr(packet[TCP], "sport", None), getattr(packet[TCP], "dport", None)
+    if UDP in packet:
+        return getattr(packet[UDP], "sport", None), getattr(packet[UDP], "dport", None)
+    return None
 
 
 def extract_packet_info(packet: Any) -> dict[str, Any]:

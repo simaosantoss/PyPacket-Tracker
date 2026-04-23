@@ -47,10 +47,25 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         help="expressão BPF bruta, por exemplo: 'tcp port 80'",
     )
     parser.add_argument("--ip", help="filtrar por endereço IP")
+    parser.add_argument("--src-ip", help="filtrar por endereço IP de origem")
+    parser.add_argument("--dst-ip", help="filtrar por endereço IP de destino")
     parser.add_argument("--mac", help="filtrar por endereço MAC")
     parser.add_argument(
         "--protocol",
         help="filtrar por protocolo: arp, ip, icmp, tcp ou udp",
+    )
+    parser.add_argument("--src-port", help="filtrar por porta de origem TCP/UDP")
+    parser.add_argument("--dst-port", help="filtrar por porta de destino TCP/UDP")
+    parser.add_argument(
+        "--fragmented",
+        action="store_true",
+        help="aceitar apenas pacotes IPv4 fragmentados",
+    )
+    parser.add_argument("--ip-id", help="filtrar por identificador IPv4")
+    parser.add_argument(
+        "--mf-only",
+        action="store_true",
+        help="aceitar apenas pacotes IPv4 com a flag MF ativa",
     )
     parser.add_argument(
         "--write-pcap",
@@ -95,6 +110,14 @@ def validate_args(args: argparse.Namespace) -> None:
         except ValueError:
             errors.append(f"endereço IP inválido: {args.ip!r}.")
 
+    for option_name, value in (("--src-ip", args.src_ip), ("--dst-ip", args.dst_ip)):
+        if not value:
+            continue
+        try:
+            ipaddress.ip_address(value)
+        except ValueError:
+            errors.append(f"endereço IP inválido em {option_name}: {value!r}.")
+
     if args.mac and not MAC_RE.fullmatch(args.mac):
         errors.append(
             f"endereço MAC inválido: {args.mac!r}. Usa o formato aa:bb:cc:dd:ee:ff."
@@ -108,6 +131,33 @@ def validate_args(args: argparse.Namespace) -> None:
                 f"protocolo não suportado: {args.protocol!r}. "
                 f"Protocolos suportados: {supported}."
             )
+
+    for option_name in ("src_port", "dst_port"):
+        value = getattr(args, option_name)
+        if value is None:
+            continue
+        try:
+            parsed_value = int(value)
+        except ValueError:
+            errors.append(
+                f"--{option_name.replace('_', '-')} tem de ser um inteiro entre 0 e 65535."
+            )
+            continue
+        if not 0 <= parsed_value <= 65535:
+            errors.append(
+                f"--{option_name.replace('_', '-')} tem de estar entre 0 e 65535."
+            )
+            continue
+        setattr(args, option_name, parsed_value)
+
+    if args.ip_id is not None:
+        try:
+            args.ip_id = int(args.ip_id)
+        except ValueError:
+            errors.append("--ip-id tem de ser um inteiro não negativo.")
+        else:
+            if args.ip_id < 0:
+                errors.append("--ip-id tem de ser um inteiro não negativo.")
 
     if args.count < 0:
         errors.append("--count não pode ser negativo.")
@@ -172,10 +222,24 @@ def build_bpf_filter(args: argparse.Namespace) -> str:
         parts.append(args.bpf.strip())
     if args.ip:
         parts.append(f"host {args.ip}")
+    if args.src_ip:
+        parts.append(f"src host {args.src_ip}")
+    if args.dst_ip:
+        parts.append(f"dst host {args.dst_ip}")
     if args.mac:
         parts.append(f"ether host {args.mac}")
     if args.protocol:
         parts.append(args.protocol)
+    if args.src_port is not None:
+        parts.append(f"src port {args.src_port}")
+    if args.dst_port is not None:
+        parts.append(f"dst port {args.dst_port}")
+    if args.fragmented:
+        parts.append("ip and (ip[6:2] & 0x1fff != 0)")
+    if args.ip_id is not None:
+        parts.append(f"ip and (ip[4:2] = {args.ip_id})")
+    if args.mf_only:
+        parts.append("ip and (ip[6] & 0x20 != 0)")
 
     # Cada parte fica isolada para preservar a precedência quando há BPF bruto.
     return " and ".join(f"({part})" for part in parts if part)
@@ -184,16 +248,59 @@ def build_bpf_filter(args: argparse.Namespace) -> str:
 def get_friendly_filters(args: argparse.Namespace) -> FriendlyFilters:
     """Extrai os filtros simples configurados pelo utilizador."""
 
-    return FriendlyFilters(ip=args.ip, mac=args.mac, protocol=args.protocol)
+    return FriendlyFilters(
+        ip=args.ip,
+        src_ip=args.src_ip,
+        dst_ip=args.dst_ip,
+        mac=args.mac,
+        protocol=args.protocol,
+        src_port=args.src_port,
+        dst_port=args.dst_port,
+        fragmented=args.fragmented,
+        ip_id=args.ip_id,
+        mf_only=args.mf_only,
+    )
 
 
-def print_summary(context: CaptureContext) -> None:
+def build_filter_summary(args: argparse.Namespace) -> str:
+    """Constrói uma descrição humana dos filtros pedidos na CLI."""
+
+    parts: list[str] = []
+
+    if args.bpf:
+        escaped_bpf = args.bpf.replace('"', '\\"')
+        parts.append(f'--bpf "{escaped_bpf}"')
+    if args.ip:
+        parts.append(f"--ip {args.ip}")
+    if args.src_ip:
+        parts.append(f"--src-ip {args.src_ip}")
+    if args.dst_ip:
+        parts.append(f"--dst-ip {args.dst_ip}")
+    if args.mac:
+        parts.append(f"--mac {args.mac}")
+    if args.protocol:
+        parts.append(f"--protocol {args.protocol}")
+    if args.src_port is not None:
+        parts.append(f"--src-port {args.src_port}")
+    if args.dst_port is not None:
+        parts.append(f"--dst-port {args.dst_port}")
+    if args.fragmented:
+        parts.append("--fragmented")
+    if args.ip_id is not None:
+        parts.append(f"--ip-id {args.ip_id}")
+    if args.mf_only:
+        parts.append("--mf-only")
+
+    return ", ".join(parts)
+
+
+def print_summary(context: CaptureContext, configured_filter: str) -> None:
     """Imprime um resumo curto da execução."""
 
     print("\nResumo:")
     print(f"  tipo de fonte: {context.source_type}")
     print(f"  fonte: {context.source_name}")
-    print(f"  filtro configurado: {context.bpf_filter or '(sem filtro)'}")
+    print(f"  filtro configurado: {configured_filter or '(sem filtro)'}")
     print(f"  pacotes processados: {context.packet_count}")
     print(format_stats_report(context.stats_state, context.packet_count))
 
@@ -204,6 +311,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     args = parse_args(argv)
     validate_args(args)
     bpf_filter = build_bpf_filter(args)
+    configured_filter = build_filter_summary(args)
     logger: Optional[Any] = None
 
     try:
@@ -216,7 +324,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             friendly_filters = get_friendly_filters(args)
             context = run_offline_capture(args, bpf_filter, friendly_filters, logger)
 
-        print_summary(context)
+        print_summary(context, configured_filter)
         return 0
     finally:
         if logger is not None:

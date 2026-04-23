@@ -99,6 +99,13 @@ Filtro ICMP:
 sudo .venv/bin/python main.py -i en0 --protocol icmp
 ```
 
+Filtros mais específicos por IP, porta e fragmentação:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --src-ip 10.0.0.1 --dst-port 53 --protocol udp
+python3 main.py -r fragmentado.pcap --fragmented
+```
+
 Traceroute ICMP:
 
 ```bash
@@ -153,6 +160,7 @@ ping 10.0.0.2
   - parsing IPv4/ICMP;
   - eventos `ICMP reply recebido`;
   - referência `request in line ...` quando o echo-reply corresponder a um request observado;
+  - existência de filtros mais específicos por IP de origem/destino, porta e fragmentação IPv4;
   - eventual evento `Possível traceroute detetado`, quando o padrão de TTL crescente surgir;
   - estatísticas finais após `Ctrl+C`.
 
@@ -285,6 +293,7 @@ python3 main.py -r captura.pcap -c 10
 - Cada pacote mostrado na consola inclui número do pacote e timestamp.
 - Os logs TXT, CSV e JSON Lines também guardam timestamp por pacote.
 - O tracking é best effort, adequado para demonstração académica, mas não é um motor completo de flows.
+- Os filtros amigáveis suportam agora critérios mais específicos por IP de origem/destino, porta TCP/UDP, fragmentação IPv4, `id` e flag `MF`.
 - O resumo pode indicar relações simples entre pacotes, como `request in line ...` para ARP, ICMP e DNS.
 - A deteção de possível traceroute usa uma heurística simples baseada em TTL crescente.
 - A fragmentação IPv4 é identificada por campos como `id`, `offset` e `MF`.

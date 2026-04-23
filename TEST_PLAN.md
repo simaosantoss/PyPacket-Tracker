@@ -162,6 +162,51 @@ sudo .venv/bin/python main.py -i en0 --protocol icmp -c 10
 
 Resultado esperado: apenas pacotes ICMP, quando houver tráfego ICMP.
 
+### Filtro por IP de origem e destino
+
+Objetivo: validar filtros mais específicos por IP.
+
+Comandos:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --src-ip 10.0.0.1 -c 10
+sudo .venv/bin/python main.py -i en0 --dst-ip 8.8.8.8 -c 10
+```
+
+Resultado esperado: no primeiro caso, apenas pacotes IPv4 com origem `10.0.0.1`; no segundo, apenas pacotes IPv4 com destino `8.8.8.8`.
+
+### Filtro por porta de origem e destino
+
+Objetivo: validar filtros TCP/UDP por porta.
+
+Comandos:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --src-port 53000 -c 10
+sudo .venv/bin/python main.py -i en0 --dst-port 53 --protocol udp -c 10
+```
+
+Resultado esperado: apenas pacotes TCP/UDP cuja porta de origem ou destino corresponda ao valor indicado.
+
+### Filtro por fragmentação IPv4
+
+Objetivo: validar filtros por estado de fragmentação e identificador IPv4.
+
+Forma fiável de preparar o teste: usar `fragmentado.pcap`.
+
+Comandos:
+
+```bash
+python3 main.py -r fragmentado.pcap --fragmented
+python3 main.py -r fragmentado.pcap --ip-id 12345
+python3 main.py -r fragmentado.pcap --mf-only
+```
+
+Resultado esperado:
+- `--fragmented`: apenas pacotes IPv4 com `offset > 0` ou `MF` ativa;
+- `--ip-id 12345`: apenas pacotes IPv4 com `id=12345`;
+- `--mf-only`: apenas pacotes IPv4 com a flag `MF` ativa.
+
 ## 6. BPF em modo live
 
 O exemplo principal usa macOS/`en0`; em Linux/CORE, usar `sudo python3 main.py -i eth0 --bpf "tcp port 80" -c 10`.

@@ -119,8 +119,25 @@ Filtros suportados:
 
 ```bash
 --ip 10.0.0.1
+--src-ip 10.0.0.1
+--dst-ip 8.8.8.8
 --mac aa:bb:cc:dd:ee:ff
 --protocol arp|ip|icmp|tcp|udp
+--src-port 53000
+--dst-port 53
+--fragmented
+--ip-id 12345
+--mf-only
+```
+
+Exemplos curtos:
+
+```bash
+sudo .venv/bin/python main.py -i en0 --src-ip 10.0.0.1
+sudo .venv/bin/python main.py -i en0 --dst-port 53 --protocol udp
+python3 main.py -r fragmentado.pcap --fragmented
+python3 main.py -r fragmentado.pcap --ip-id 12345
+sudo .venv/bin/python main.py -i en0 --src-ip 10.0.0.1 --dst-port 53 --protocol udp
 ```
 
 ### Captura live com BPF bruto
