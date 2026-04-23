@@ -72,6 +72,10 @@ def format_packet_line(record: dict[str, Any]) -> str:
 
     parts: list[str] = []
 
+    packet_number = record.get("packet_number")
+    if packet_number not in (None, ""):
+        parts.append(f"[{packet_number}]")
+
     source_display = record.get("source_display")
     if source_display:
         parts.append(f"[{source_display}]")
@@ -108,8 +112,7 @@ def open_packet_logger(path: str, log_format: str) -> PacketLogger:
 def format_txt_record(record: dict[str, Any]) -> str:
     """Formata uma linha TXT curta, semelhante ao output da consola."""
 
-    packet_number = record.get("packet_number", "")
-    return f"[{packet_number}] {format_packet_line(record)}"
+    return format_packet_line(record)
 
 
 def validate_log_path(path: str) -> Optional[str]:

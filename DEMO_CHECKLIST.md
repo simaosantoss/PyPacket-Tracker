@@ -149,9 +149,10 @@ ping 10.0.0.2
 ```
 
 - [ ] Mostrar:
-  - linhas por pacote com timestamp;
+  - linhas por pacote com número e timestamp;
   - parsing IPv4/ICMP;
   - eventos `ICMP reply recebido`;
+  - referência `request in line ...` quando o echo-reply corresponder a um request observado;
   - eventual evento `Possível traceroute detetado`, quando o padrão de TTL crescente surgir;
   - estatísticas finais após `Ctrl+C`.
 
@@ -176,6 +177,7 @@ sudo python3 main.py -i eth0 -c 20 --log-file core.csv --log-format csv
 
 - [ ] Abrir ou mostrar o ficheiro `core.csv`.
 - [ ] Confirmar que o log mostra timestamp por pacote.
+- [ ] Mostrar que ARP, ICMP e DNS podem incluir referências simples como `request in line ...`.
 - [ ] Se for útil para a defesa, correr `traceroute -I 8.8.8.8` e mostrar o evento `Possível traceroute detetado`.
 - [ ] Se houver um PCAP preparado com fragmentação IPv4, abri-lo e mostrar os campos `id`, `offset` e `MF`, bem como o evento `Fragmentos IPv4 completos`.
 
@@ -280,9 +282,10 @@ python3 main.py -r captura.pcap -c 10
 - `tracking.py` mantém estado simples para ARP, ICMP, TCP, possível traceroute e fragmentação IPv4.
 - `logging_output.py` escreve TXT, CSV e JSON Lines.
 - `stats.py` agrega estatísticas finais.
-- Cada pacote mostrado na consola inclui timestamp.
+- Cada pacote mostrado na consola inclui número do pacote e timestamp.
 - Os logs TXT, CSV e JSON Lines também guardam timestamp por pacote.
 - O tracking é best effort, adequado para demonstração académica, mas não é um motor completo de flows.
+- O resumo pode indicar relações simples entre pacotes, como `request in line ...` para ARP, ICMP e DNS.
 - A deteção de possível traceroute usa uma heurística simples baseada em TTL crescente.
 - A fragmentação IPv4 é identificada por campos como `id`, `offset` e `MF`.
 - Os fragmentos são agrupados de forma lógica por datagrama, sem reconstrução profunda de payload.

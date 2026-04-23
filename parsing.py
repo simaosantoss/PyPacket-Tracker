@@ -449,24 +449,29 @@ def format_ipv4_flow(info: dict[str, Any]) -> Optional[str]:
     return None
 
 
-def summarize_packet(packet: Any) -> str:
+def summarize_packet(packet: Any, annotations: Optional[list[str]] = None) -> str:
     """Cria uma linha curta com o resumo suportado do pacote."""
 
     try:
         info = extract_packet_info(packet)
     except Exception:
-        return "Outro | pacote incompleto ou não suportado nesta fase"
+        return append_summary_annotations(
+            "Outro | pacote incompleto ou não suportado nesta fase", annotations
+        )
 
     if "arp" in info:
-        return add_link_layer_prefix(info, summarize_arp(info["arp"]))
+        summary = add_link_layer_prefix(info, summarize_arp(info["arp"]))
+        return append_summary_annotations(summary, annotations)
     if "ipv4" in info:
-        return add_link_layer_prefix(info, summarize_ipv4(info["ipv4"]))
+        summary = add_link_layer_prefix(info, summarize_ipv4(info["ipv4"]))
+        return append_summary_annotations(summary, annotations)
 
     ethernet_info = info.get("ethernet", {})
     ethertype = ethernet_info.get("ethertype")
     if ethertype:
-        return f"Ethernet | Outro | ethertype={ethertype} | tipo não suportado nesta fase"
-    return "Outro | tipo não suportado nesta fase"
+        summary = f"Ethernet | Outro | ethertype={ethertype} | tipo não suportado nesta fase"
+        return append_summary_annotations(summary, annotations)
+    return append_summary_annotations("Outro | tipo não suportado nesta fase", annotations)
 
 
 def add_link_layer_prefix(info: dict[str, Any], summary: str) -> str:
@@ -475,6 +480,16 @@ def add_link_layer_prefix(info: dict[str, Any], summary: str) -> str:
     if "ethernet" in info:
         return f"Ethernet | {summary}"
     return summary
+
+
+def append_summary_annotations(
+    summary: str, annotations: Optional[list[str]]
+) -> str:
+    """Acrescenta referências entre pacotes no fim do resumo."""
+
+    if not annotations:
+        return summary
+    return " | ".join([summary, *annotations])
 
 
 def build_log_record(

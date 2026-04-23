@@ -11,14 +11,18 @@ from parsing import format_tcp_flags
 TcpKey = tuple[str, int, str, int]
 TracerouteKey = tuple[str, str, str]
 FragmentKey = tuple[str, str, int, Any]
+DnsKey = tuple[str, str, Any, Any, Any]
 
 
 @dataclass
 class TrackerState:
     """Guarda o estado mínimo necessário para detetar eventos simples."""
 
-    arp_requests: set[tuple[str, str]] = field(default_factory=set)
-    icmp_echo_requests: set[tuple[str, str, Any, Any]] = field(default_factory=set)
+    arp_requests: dict[tuple[str, str], Optional[int]] = field(default_factory=dict)
+    icmp_echo_requests: dict[tuple[str, str, Any, Any], Optional[int]] = field(
+        default_factory=dict
+    )
+    dns_queries: dict[DnsKey, Optional[int]] = field(default_factory=dict)
     tcp_flows: dict[TcpKey, str] = field(default_factory=dict)
     traceroute_flows: dict[TracerouteKey, dict[str, Any]] = field(default_factory=dict)
     ipv4_fragments: dict[FragmentKey, dict[str, Any]] = field(default_factory=dict)
@@ -27,36 +31,57 @@ class TrackerState:
 def process_packet_for_events(packet: Any, state: TrackerState) -> list[str]:
     """Processa um pacote e devolve eventos detetados, se existirem."""
 
+    events, _ = process_packet_tracking(packet, state, packet_number=None)
+    return events
+
+
+def process_packet_tracking(
+    packet: Any, state: TrackerState, packet_number: Optional[int]
+) -> tuple[list[str], list[str]]:
+    """Processa um pacote e devolve eventos e anotações para o resumo."""
+
     try:
         events: list[str] = []
-        arp_event = process_arp_event(packet, state)
-        icmp_event = process_icmp_event(packet, state)
+        annotations: list[str] = []
+        arp_event, arp_annotation = process_arp_tracking(packet, state, packet_number)
+        icmp_event, icmp_annotation = process_icmp_tracking(
+            packet, state, packet_number
+        )
+        dns_annotation = process_dns_tracking(packet, state, packet_number)
         tcp_event = process_tcp_event(packet, state)
         traceroute_event = process_traceroute_event(packet, state)
         fragment_event = process_ipv4_fragment_event(packet, state)
 
         if arp_event:
             events.append(arp_event)
+        if arp_annotation:
+            annotations.append(arp_annotation)
         if icmp_event:
             events.append(icmp_event)
+        if icmp_annotation:
+            annotations.append(icmp_annotation)
+        if dns_annotation:
+            annotations.append(dns_annotation)
         if tcp_event:
             events.append(tcp_event)
         if traceroute_event:
             events.append(traceroute_event)
         if fragment_event:
             events.append(fragment_event)
-        return events
+        return events, annotations
     except Exception:
-        return []
+        return [], []
 
 
-def process_arp_event(packet: Any, state: TrackerState) -> Optional[str]:
-    """Deteta pares ARP request/reply de forma simples."""
+def process_arp_tracking(
+    packet: Any, state: TrackerState, packet_number: Optional[int]
+) -> tuple[Optional[str], Optional[str]]:
+    """Deteta pares ARP request/reply e referencia a linha do pedido."""
 
     from scapy.layers.l2 import ARP
 
     if ARP not in packet:
-        return None
+        return None, None
 
     arp = packet[ARP]
     operation = getattr(arp, "op", None)
@@ -65,26 +90,33 @@ def process_arp_event(packet: Any, state: TrackerState) -> Optional[str]:
     src_mac = getattr(arp, "hwsrc", None)
 
     if operation in (1, "who-has") and src_ip and dst_ip:
-        state.arp_requests.add((src_ip, dst_ip))
-        return None
+        state.arp_requests[(src_ip, dst_ip)] = packet_number
+        return None, None
 
     if operation in (2, "is-at") and src_ip and dst_ip:
         request_key = (dst_ip, src_ip)
         if request_key in state.arp_requests:
-            state.arp_requests.discard(request_key)
+            request_line = state.arp_requests.pop(request_key)
+            annotation = format_line_reference("request in line", request_line)
             if src_mac:
-                return f"[evento] ARP resolvido | {src_ip} está em {src_mac}"
+                return (
+                    f"[evento] ARP resolvido | {src_ip} está em {src_mac}",
+                    annotation,
+                )
+            return None, annotation
 
-    return None
+    return None, None
 
 
-def process_icmp_event(packet: Any, state: TrackerState) -> Optional[str]:
-    """Deteta pares ICMP echo-request/echo-reply."""
+def process_icmp_tracking(
+    packet: Any, state: TrackerState, packet_number: Optional[int]
+) -> tuple[Optional[str], Optional[str]]:
+    """Deteta pares ICMP echo-request/echo-reply e referencia a linha do pedido."""
 
     from scapy.layers.inet import ICMP, IP
 
     if IP not in packet or ICMP not in packet:
-        return None
+        return None, None
 
     ip = packet[IP]
     icmp = packet[ICMP]
@@ -96,14 +128,60 @@ def process_icmp_event(packet: Any, state: TrackerState) -> Optional[str]:
     icmp_seq = getattr(icmp, "seq", None)
 
     if icmp_type == 8 and icmp_code == 0 and src_ip and dst_ip:
-        state.icmp_echo_requests.add((src_ip, dst_ip, icmp_id, icmp_seq))
-        return None
+        state.icmp_echo_requests[(src_ip, dst_ip, icmp_id, icmp_seq)] = packet_number
+        return None, None
 
     if icmp_type == 0 and icmp_code == 0 and src_ip and dst_ip:
         request_key = (dst_ip, src_ip, icmp_id, icmp_seq)
         if request_key in state.icmp_echo_requests:
-            state.icmp_echo_requests.discard(request_key)
-            return f"[evento] ICMP reply recebido | {src_ip} respondeu a {dst_ip}"
+            request_line = state.icmp_echo_requests.pop(request_key)
+            annotation = format_line_reference("request in line", request_line)
+            return (
+                f"[evento] ICMP reply recebido | {src_ip} respondeu a {dst_ip}",
+                annotation,
+            )
+
+    return None, None
+
+
+def process_dns_tracking(
+    packet: Any, state: TrackerState, packet_number: Optional[int]
+) -> Optional[str]:
+    """Liga respostas DNS à linha da query observada."""
+
+    try:
+        from scapy.layers.dns import DNS
+        from scapy.layers.inet import IP, UDP
+    except ModuleNotFoundError:
+        return None
+
+    if IP not in packet or UDP not in packet or DNS not in packet:
+        return None
+
+    ip = packet[IP]
+    udp = packet[UDP]
+    dns = packet[DNS]
+    src_ip = getattr(ip, "src", None)
+    dst_ip = getattr(ip, "dst", None)
+    src_port = getattr(udp, "sport", None)
+    dst_port = getattr(udp, "dport", None)
+    dns_id = getattr(dns, "id", None)
+    query_response = getattr(dns, "qr", None)
+
+    if not src_ip or not dst_ip or src_port is None or dst_port is None:
+        return None
+
+    if len(state.dns_queries) > 512:
+        state.dns_queries.clear()
+
+    if query_response == 0:
+        state.dns_queries[(src_ip, dst_ip, src_port, dst_port, dns_id)] = packet_number
+        return None
+
+    if query_response == 1:
+        query_key = (dst_ip, src_ip, dst_port, src_port, dns_id)
+        query_line = state.dns_queries.pop(query_key, None)
+        return format_line_reference("request in line", query_line)
 
     return None
 
@@ -283,6 +361,14 @@ def detect_tcp_termination(flags: str) -> Optional[str]:
     if "FIN" in flags:
         return "FIN"
     return None
+
+
+def format_line_reference(label: str, packet_number: Optional[int]) -> Optional[str]:
+    """Formata uma referência curta para outra linha observada."""
+
+    if packet_number is None:
+        return None
+    return f"{label} {packet_number}"
 
 
 def normalize_transport_protocol(value: Any) -> Optional[str]:

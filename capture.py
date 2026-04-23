@@ -15,7 +15,7 @@ from parsing import (
     summarize_packet,
 )
 from stats import StatsState, update_event_stats, update_packet_stats
-from tracking import TrackerState, process_packet_for_events
+from tracking import TrackerState, process_packet_tracking
 
 
 @dataclass
@@ -83,7 +83,10 @@ def handle_packet(packet: Any, context: CaptureContext) -> None:
     if context.writer is not None:
         context.writer.write(packet)
 
-    summary = summarize_packet(packet)
+    events, annotations = process_packet_tracking(
+        packet, context.tracker_state, context.packet_count
+    )
+    summary = summarize_packet(packet, annotations)
     record = build_log_record(
         packet,
         context.source_type,
@@ -98,7 +101,6 @@ def handle_packet(packet: Any, context: CaptureContext) -> None:
     if context.packet_logger is not None:
         context.packet_logger.write_packet(record)
 
-    events = process_packet_for_events(packet, context.tracker_state)
     update_event_stats(context.stats_state, events)
 
     for event in events:

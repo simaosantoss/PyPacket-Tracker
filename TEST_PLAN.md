@@ -120,7 +120,7 @@ Comando:
 python3 main.py -r captura.pcap -c 10
 ```
 
-Resultado esperado: até 10 pacotes lidos do PCAP gerado, prefixados com `[offline:captura.pcap]`, cada um com timestamp e resumo do protocolo, seguidos de resumo e estatísticas.
+Resultado esperado: até 10 pacotes lidos do PCAP gerado, prefixados com número do pacote, `[offline:captura.pcap]`, timestamp e resumo do protocolo, seguidos de resumo e estatísticas.
 
 ## 5. Filtros amigáveis
 
@@ -258,7 +258,7 @@ Tráfego a gerar:
 ping 10.0.0.2
 ```
 
-Resultado esperado: linhas com `ARP | request` ou `ARP | reply`, contendo IPs e MACs quando disponíveis.
+Resultado esperado: linhas com `Ethernet | ARP | request` ou `Ethernet | ARP | reply`, contendo IPs e MACs quando disponíveis.
 
 ## 10. Parsing ICMP
 
@@ -277,6 +277,7 @@ ping 10.0.0.2
 ```
 
 Resultado esperado: linhas com `ICMP | echo-request` e/ou `ICMP | echo-reply`.
+Quando houver correspondência com um pedido anterior, o `echo-reply` pode incluir `request in line N`.
 
 ## 11. Parsing TCP
 
@@ -313,6 +314,7 @@ dig example.com
 ```
 
 Resultado esperado: linhas IPv4 com `UDP` e, quando o pacote o permitir de forma clara, resumos como `DNS query`, `DNS response`, `DHCP Discover`, `DHCP Offer`, `DHCP Request` ou `DHCP ACK`.
+Quando uma resposta DNS corresponder a uma query observada, o resumo pode incluir `request in line N`.
 
 ## 13. Evento ARP
 
@@ -336,6 +338,8 @@ Resultado esperado:
 [evento] ARP resolvido | 10.0.0.2 está em aa:bb:cc:dd:ee:ff
 ```
 
+O resumo do ARP reply correspondente pode incluir `request in line N`.
+
 ## 14. Evento ICMP
 
 Objetivo: detetar echo-request seguido de echo-reply.
@@ -357,6 +361,8 @@ Resultado esperado:
 ```text
 [evento] ICMP reply recebido | 10.0.0.2 respondeu a 10.0.0.1
 ```
+
+O resumo do echo-reply correspondente pode incluir `request in line N`.
 
 ## 15. Evento TCP
 

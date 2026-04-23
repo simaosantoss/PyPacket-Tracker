@@ -20,6 +20,7 @@ O projeto privilegia simplicidade e legibilidade. Não pretende substituir ferra
   - HTTP: porta 80 em TCP
 - Timestamp por pacote no output e no logging estruturado.
 - Tracking simples de estado para ARP, ICMP, TCP e deteção heurística de possível traceroute.
+- Referências simples entre pacotes relacionados, como `request in line ...`.
 - Logging estruturado em `txt`, `csv` e JSON Lines.
 - Estatísticas finais por protocolo, top talkers e eventos detetados.
 
@@ -186,7 +187,13 @@ O sniffer reconhece e resume:
 Exemplo de output:
 
 ```text
-[live:en0] [14:02:10] Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
+[12] [live:en0] [14:02:10] Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
+```
+
+Quando o tracker consegue relacionar pacotes, o resumo pode incluir referências simples ao número da linha:
+
+```text
+[13] [live:en0] [14:02:11] Ethernet | IPv4 | 8.8.8.8:53 -> 10.0.0.1:53000 | ttl=64 | UDP | DNS response | request in line 12
 ```
 
 ## Eventos detetados pelo tracker
@@ -204,6 +211,8 @@ O tracker mantém estado simples em memória e deteta eventos best effort:
 ```text
 [evento] ICMP reply recebido | 10.0.0.2 respondeu a 10.0.0.1
 ```
+
+Nestes casos, o próprio resumo do pacote de resposta pode indicar a linha do pedido original, por exemplo `request in line 40`.
 
 - TCP 3-way handshake:
 

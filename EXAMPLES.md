@@ -10,12 +10,14 @@ sudo .venv/bin/python main.py ...
 
 Isto garante que o Python executado com `sudo` usa o Scapy instalado na virtualenv.
 
-As linhas mostradas na consola incluem agora o prefixo da fonte e um timestamp curto por pacote, por exemplo:
+As linhas mostradas na consola incluem agora o número do pacote, o prefixo da fonte e um timestamp curto, por exemplo:
 
 ```text
-[live:en0] [14:02:10] Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
-[offline:captura.pcap] [14:05:31] Ethernet | ARP | request | 10.0.0.1 -> 10.0.0.2 | aa:bb:cc:dd:ee:ff -> ff:ff:ff:ff:ff:ff
+[12] [live:en0] [14:02:10] Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
+[13] [offline:captura.pcap] [14:05:31] Ethernet | ARP | reply | 10.0.0.2 -> 10.0.0.1 | aa:bb:cc:dd:ee:ff -> ff:ff:ff:ff:ff:ff | request in line 12
 ```
+
+Quando o sniffer consegue relacionar pedidos e respostas, acrescenta uma referência curta ao número da linha do pedido, como `request in line 12`.
 
 ## Fluxo prático completo em macOS
 
@@ -244,6 +246,32 @@ Captura live com log JSON:
 
 ```bash
 sudo .venv/bin/python main.py -i en0 --timeout 30 --log-file live.jsonl --log-format json
+```
+
+## Referências entre pedidos e respostas
+
+ARP reply com referência ao request:
+
+```text
+[13] [live:en0] [11:22:13] Ethernet | ARP | reply | 10.0.0.2 -> 10.0.0.1 | 11:22:33:44:55:66 -> aa:bb:cc:dd:ee:ff | request in line 12
+```
+
+ICMP echo-reply com referência ao echo-request:
+
+```text
+[41] [live:en0] [11:22:15] Ethernet | IPv4 | 8.8.8.8 -> 10.0.0.1 | ttl=64 | ICMP | echo-reply | request in line 40
+```
+
+DNS response com referência à query:
+
+```text
+[92] [live:en0] [11:22:20] Ethernet | IPv4 | 8.8.8.8:53 -> 10.0.0.1:53000 | ttl=64 | UDP | DNS response | request in line 91
+```
+
+Quando não há relação conhecida, o formato continua limpo:
+
+```text
+[93] [live:en0] [11:22:21] Ethernet | IPv4 | 10.0.0.1:12345 -> 1.1.1.1:443 | ttl=64 | TCP [SYN]
 ```
 
 ## Fragmentação IPv4
