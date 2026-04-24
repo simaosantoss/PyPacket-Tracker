@@ -23,6 +23,7 @@ O projeto privilegia simplicidade e legibilidade. Não pretende substituir ferra
 - Referências simples entre pacotes relacionados, como `request in line ...`.
 - Logging estruturado em `txt`, `csv` e JSON Lines.
 - Estatísticas finais por protocolo, top talkers e eventos detetados.
+- Consulta interativa simples de um pacote pelo número no fim da execução, quando existe pelo menos um pacote e o programa corre num terminal interativo.
 
 ## Estrutura do projeto
 
@@ -155,6 +156,8 @@ sudo .venv/bin/python main.py -i en0 -c 50
 sudo .venv/bin/python main.py -i en0 --timeout 30
 ```
 
+Se a execução terminar com pelo menos um pacote processado e estiver a correr num terminal interativo, o programa apresenta ainda uma prompt simples para rever um pacote pelo número. Depois de mostrar o resumo final e as estatísticas, o utilizador pode escolher um número, ver um detalhe textual mais completo desse pacote e terminar com `0`.
+
 ### Guardar captura crua em PCAP
 
 ```bash
@@ -206,6 +209,8 @@ Exemplo de output:
 ```text
 [12] [live:en0] [14:02:10] Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
 ```
+
+O resumo por pacote mantém-se curto na captura normal. No fim da execução, existe agora uma vista textual mais detalhada por pacote, acessível pelo número da linha, útil para inspeção e demonstração.
 
 Quando o tracker consegue relacionar pacotes, o resumo pode incluir referências simples ao número da linha:
 
@@ -263,6 +268,7 @@ No fim da execução, incluindo quando a captura é interrompida com `Ctrl+C`, o
 - contagem e percentagem por protocolo principal;
 - top 3 IPs de origem;
 - contagem de eventos detetados pelo tracker.
+- quando existir pelo menos um pacote e a execução for interativa, uma prompt para consultar o detalhe de um pacote pelo número.
 
 Exemplo:
 
@@ -292,6 +298,14 @@ Estatísticas:
     TCP handshake concluído: 2
     TCP sessão terminada: 2
 ```
+
+Depois deste resumo, pode surgir uma prompt como:
+
+```text
+Selecione o pacote que quer analisar (ou prima 0 para terminar):
+```
+
+Ao escolher um número válido, o programa mostra um detalhe textual com os campos observados em Ethernet, ARP, IPv4 e ICMP/TCP/UDP, quando essas camadas existirem.
 
 ## Exemplos de comandos
 
@@ -372,7 +386,7 @@ Também é possível guardar logs:
 sudo python3 main.py -i eth0 --log-file core.csv --log-format csv
 ```
 
-Para demonstrar fragmentação IPv4, uma abordagem simples e fiável é abrir um PCAP preparado com fragmentos, por exemplo `fragmentado.pcap`. Em modo live, também se pode tentar gerar tráfego grande com `ping`, quando o sistema, a rede e o MTU o permitirem.
+Para demonstrar fragmentação IPv4, uma abordagem simples e fiável é abrir um PCAP preparado localmente com fragmentos, por exemplo `fragmentado.pcap`. Esse ficheiro não vem incluído no repositório e deve ser gerado ou preparado localmente pelo utilizador para os testes. Em modo live, também se pode tentar gerar tráfego grande com `ping`, quando o sistema, a rede e o MTU o permitirem.
 
 ### Numa interface real
 

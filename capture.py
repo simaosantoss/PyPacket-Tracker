@@ -11,6 +11,7 @@ from logging_output import format_packet_line
 from parsing import (
     FriendlyFilters,
     build_log_record,
+    extract_packet_info,
     packet_matches_friendly_filters,
     summarize_packet,
 )
@@ -34,6 +35,7 @@ class CaptureContext:
     packet_logger: Optional[Any] = None
     tracker_state: TrackerState = field(default_factory=TrackerState)
     stats_state: StatsState = field(default_factory=StatsState)
+    packet_history: list[dict[str, Any]] = field(default_factory=list)
 
 
 def require_scapy() -> tuple[Any, Any, Any, type[Exception]]:
@@ -86,14 +88,22 @@ def handle_packet(packet: Any, context: CaptureContext) -> None:
     events, annotations = process_packet_tracking(
         packet, context.tracker_state, context.packet_count
     )
-    summary = summarize_packet(packet, annotations)
+
+    try:
+        packet_info = extract_packet_info(packet)
+    except Exception:
+        packet_info = {}
+
+    summary = summarize_packet(packet, annotations, packet_info)
     record = build_log_record(
         packet,
         context.source_type,
         context.source_name,
         context.packet_count,
         summary,
+        packet_info,
     )
+    context.packet_history.append({"record": record, "info": packet_info})
     print(format_packet_line(record))
 
     update_packet_stats(context.stats_state, record)

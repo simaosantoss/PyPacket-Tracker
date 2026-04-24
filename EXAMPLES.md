@@ -296,6 +296,62 @@ Captura live com log JSON:
 sudo .venv/bin/python main.py -i en0 --timeout 30 --log-file live.jsonl --log-format json
 ```
 
+## Consulta interativa no fim
+
+O modo interativo aparece no fim da execução quando existe pelo menos um pacote processado e o programa está a correr num terminal interativo.
+
+Exemplo simples:
+
+```bash
+python3 main.py -r captura.pcap -c 5
+```
+
+Exemplo curto de fluxo:
+
+```text
+Resumo:
+  tipo de fonte: offline
+  fonte: captura.pcap
+  filtro configurado: (sem filtro)
+  pacotes processados: 5
+
+Estatísticas:
+  protocolos:
+    UDP: 3 (60.0%)
+    ICMP: 2 (40.0%)
+
+Selecione o pacote que quer analisar (ou prima 0 para terminar): 2
+
+Detalhe do pacote 2
+  tipo de fonte: offline
+  fonte: captura.pcap
+  timestamp: 2026-04-24T10:15:31
+  resumo: Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query
+
+Ethernet:
+  src_mac: aa:bb:cc:dd:ee:ff
+  dst_mac: 11:22:33:44:55:66
+  ethertype: IPv4 (0x0800)
+
+IPv4:
+  src_ip: 10.0.0.1
+  dst_ip: 8.8.8.8
+  ttl: 64
+  length: 72
+  protocol: UDP
+  ip_id: 12345
+  fragment_offset: 0
+  more_fragments: False
+
+UDP:
+  src_port: 53000
+  dst_port: 53
+  service: DNS
+  detail: DNS query
+
+Selecione o pacote que quer analisar (ou prima 0 para terminar): 0
+```
+
 ## Referências entre pedidos e respostas
 
 ARP reply com referência ao request:
@@ -323,6 +379,8 @@ Quando não há relação conhecida, o formato continua limpo:
 ```
 
 ## Fragmentação IPv4
+
+Nota: `fragmentado.pcap` não vem incluído no repositório. Deve ser gerado ou preparado localmente pelo utilizador com fragmentos IPv4.
 
 Leitura offline de um PCAP com fragmentação IPv4:
 

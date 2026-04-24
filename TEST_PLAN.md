@@ -192,7 +192,7 @@ Resultado esperado: apenas pacotes TCP/UDP cuja porta de origem ou destino corre
 
 Objetivo: validar filtros por estado de fragmentação e identificador IPv4.
 
-Forma fiável de preparar o teste: usar `fragmentado.pcap`.
+Forma fiável de preparar o teste: usar `fragmentado.pcap`. Esse ficheiro não vem incluído no repositório e deve ser gerado ou preparado localmente com fragmentos IPv4.
 
 Comandos:
 
@@ -504,7 +504,7 @@ Comando opcional com logging CSV:
 python3 main.py -r fragmentado.pcap --log-file fragmentado.csv --log-format csv
 ```
 
-Forma prática de preparar o teste: usar um PCAP gerado previamente com Scapy contendo um datagrama IPv4 fragmentado. Esta é a forma mais fiável de validar a funcionalidade.
+Forma prática de preparar o teste: usar um PCAP gerado previamente com Scapy contendo um datagrama IPv4 fragmentado. Esse ficheiro não vem incluído no repositório e deve ser preparado localmente para os testes. Esta é a forma mais fiável de validar a funcionalidade.
 
 Resultado esperado:
 
@@ -556,3 +556,28 @@ sudo python3 main.py -i eth0 --timeout 30
 ```
 
 Resultado esperado: no fim aparecem `Resumo` e `Estatísticas`, incluindo protocolos, top talkers e eventos detetados.
+
+## 19. Consulta interativa de pacotes
+
+Objetivo: validar a consulta textual de um pacote pelo número no fim da execução.
+
+Comando:
+
+```bash
+python3 main.py -r captura.pcap -c 5
+```
+
+O que fazer no fim da execução:
+
+1. Esperar pelo aparecimento da prompt `Selecione o pacote que quer analisar (ou prima 0 para terminar):`
+2. Introduzir um valor inválido, por exemplo `abc`
+3. Introduzir um número válido, por exemplo `1`
+4. Confirmar que o detalhe do pacote é mostrado
+5. Introduzir `0` para terminar
+
+Resultado esperado:
+
+- a prompt aparece após `Resumo` e `Estatísticas`, desde que exista pelo menos um pacote processado e a execução decorra num terminal interativo;
+- um input inválido produz uma mensagem curta de erro e volta a pedir;
+- um número válido mostra um detalhe textual do pacote, com cabeçalho, timestamp, resumo e secções das camadas observadas;
+- `0` termina este modo interativo e encerra o programa.

@@ -137,6 +137,14 @@ Fragmentação IPv4 em PCAP:
 python3 main.py -r fragmentado.pcap
 ```
 
+Nota: `fragmentado.pcap` não vem incluído no repositório e deve ser gerado ou preparado localmente para a demonstração.
+
+Consulta interativa no fim da execução:
+
+```bash
+python3 main.py -r captura.pcap -c 5
+```
+
 ## Demonstração no CORE
 
 - [ ] Abrir a topologia no CORE.
@@ -162,7 +170,8 @@ ping 10.0.0.2
   - referência `request in line ...` quando o echo-reply corresponder a um request observado;
   - existência de filtros mais específicos por IP de origem/destino, porta e fragmentação IPv4;
   - eventual evento `Possível traceroute detetado`, quando o padrão de TTL crescente surgir;
-  - estatísticas finais após `Ctrl+C`.
+  - estatísticas finais após `Ctrl+C`;
+  - consulta interativa de um pacote pelo número no fim da execução, quando houver pelo menos um pacote.
 
 - [ ] Gerar TCP, se houver um serviço HTTP no destino:
 
@@ -241,6 +250,10 @@ sudo .venv/bin/python main.py -i en0 -c 30 --write-pcap captura.pcap
 python3 main.py -r captura.pcap -c 10
 ```
 
+- [ ] Depois de o programa terminar, escolher um número de pacote na prompt interativa.
+- [ ] Mostrar o detalhe textual desse pacote.
+- [ ] Sair com `0`.
+
 ## Demonstração numa interface real Linux
 
 - [ ] Confirmar a interface ativa com `ip addr`. Exemplos comuns: `eth0`, `ens33`, `wlan0`.
@@ -295,6 +308,8 @@ python3 main.py -r captura.pcap -c 10
 - O tracking é best effort, adequado para demonstração académica, mas não é um motor completo de flows.
 - Os filtros amigáveis suportam agora critérios mais específicos por IP de origem/destino, porta TCP/UDP, fragmentação IPv4, `id` e flag `MF`.
 - O resumo pode indicar relações simples entre pacotes, como `request in line ...` para ARP, ICMP e DNS.
+- No fim da execução, o programa pode rever um pacote específico pelo número.
+- Essa vista detalhada reutiliza a informação já extraída durante o parsing, sem alterar o output normal da captura.
 - A deteção de possível traceroute usa uma heurística simples baseada em TTL crescente.
 - A fragmentação IPv4 é identificada por campos como `id`, `offset` e `MF`.
 - Os fragmentos são agrupados de forma lógica por datagrama, sem reconstrução profunda de payload.

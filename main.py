@@ -16,7 +16,7 @@ from logging_output import (
     open_packet_logger,
     validate_log_path,
 )
-from parsing import FriendlyFilters
+from parsing import FriendlyFilters, format_packet_detail
 from stats import format_stats_report
 
 
@@ -305,6 +305,42 @@ def print_summary(context: CaptureContext, configured_filter: str) -> None:
     print(format_stats_report(context.stats_state, context.packet_count))
 
 
+def interactive_packet_view(context: CaptureContext) -> None:
+    """Permite consultar detalhes de pacotes já processados."""
+
+    if not context.packet_history or not sys.stdin.isatty():
+        return
+
+    while True:
+        try:
+            answer = input(
+                "\nSelecione o pacote que quer analisar (ou prima 0 para terminar): "
+            ).strip()
+        except EOFError:
+            print()
+            return
+        except KeyboardInterrupt:
+            print("\n")
+            return
+
+        try:
+            packet_number = int(answer)
+        except ValueError:
+            print("Erro: introduz um número de pacote válido.")
+            continue
+
+        if packet_number == 0:
+            return
+
+        if packet_number < 0 or packet_number > len(context.packet_history):
+            print("Erro: número de pacote fora do intervalo processado.")
+            continue
+
+        packet_entry = context.packet_history[packet_number - 1]
+        print()
+        print(format_packet_detail(packet_entry))
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     """Ponto de entrada da aplicação."""
 
@@ -325,6 +361,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             context = run_offline_capture(args, bpf_filter, friendly_filters, logger)
 
         print_summary(context, configured_filter)
+        interactive_packet_view(context)
         return 0
     finally:
         if logger is not None:

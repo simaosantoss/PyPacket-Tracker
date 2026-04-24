@@ -557,15 +557,20 @@ def format_ipv4_flow(info: dict[str, Any]) -> Optional[str]:
     return None
 
 
-def summarize_packet(packet: Any, annotations: Optional[list[str]] = None) -> str:
+def summarize_packet(
+    packet: Any,
+    annotations: Optional[list[str]] = None,
+    info: Optional[dict[str, Any]] = None,
+) -> str:
     """Cria uma linha curta com o resumo suportado do pacote."""
 
-    try:
-        info = extract_packet_info(packet)
-    except Exception:
-        return append_summary_annotations(
-            "Outro | pacote incompleto ou não suportado nesta fase", annotations
-        )
+    if info is None:
+        try:
+            info = extract_packet_info(packet)
+        except Exception:
+            return append_summary_annotations(
+                "Outro | pacote incompleto ou não suportado nesta fase", annotations
+            )
 
     if "arp" in info:
         summary = add_link_layer_prefix(info, summarize_arp(info["arp"]))
@@ -606,6 +611,7 @@ def build_log_record(
     source_name: str,
     packet_number: int,
     summary: str,
+    info: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """Constrói um registo achatado e estável para logging estruturado."""
 
@@ -634,10 +640,11 @@ def build_log_record(
     record["timestamp"] = timestamp_iso
     record["timestamp_display"] = timestamp_display
 
-    try:
-        info = extract_packet_info(packet)
-    except Exception:
-        return record
+    if info is None:
+        try:
+            info = extract_packet_info(packet)
+        except Exception:
+            return record
 
     if "arp" in info:
         fill_arp_log_record(record, info["arp"])
@@ -645,6 +652,92 @@ def build_log_record(
         fill_ipv4_log_record(record, info["ipv4"])
 
     return record
+
+
+def format_packet_detail(packet_entry: dict[str, Any]) -> str:
+    """Formata uma vista textual mais detalhada de um pacote guardado."""
+
+    record = packet_entry.get("record", {})
+    info = packet_entry.get("info", {})
+    lines = [f"Detalhe do pacote {format_detail_value(record.get('packet_number'))}"]
+
+    lines.append(f"  tipo de fonte: {format_detail_value(record.get('source_type'))}")
+    lines.append(f"  fonte: {format_detail_value(record.get('source_name'))}")
+    lines.append(
+        f"  timestamp: {format_detail_value(record.get('timestamp') or record.get('timestamp_display'))}"
+    )
+    lines.append(f"  resumo: {format_detail_value(record.get('summary'))}")
+
+    if info.get("ethernet"):
+        lines.extend(format_detail_section("Ethernet", info["ethernet"]))
+    if info.get("arp"):
+        lines.extend(format_detail_section("ARP", info["arp"]))
+    if info.get("ipv4"):
+        ipv4_info = info["ipv4"]
+        lines.extend(
+            format_detail_section(
+                "IPv4",
+                ipv4_info,
+                fields=(
+                    "src_ip",
+                    "dst_ip",
+                    "ttl",
+                    "length",
+                    "protocol",
+                    "ip_id",
+                    "fragment_offset",
+                    "more_fragments",
+                ),
+            )
+        )
+
+        transport_info = ipv4_info.get("transport", {})
+        if transport_info.get("protocol") == "ICMP":
+            lines.extend(
+                format_detail_section(
+                    "ICMP", transport_info, fields=("type", "code", "name")
+                )
+            )
+        elif transport_info.get("protocol") == "TCP":
+            lines.extend(
+                format_detail_section(
+                    "TCP",
+                    transport_info,
+                    fields=("src_port", "dst_port", "flags", "service"),
+                )
+            )
+        elif transport_info.get("protocol") == "UDP":
+            lines.extend(
+                format_detail_section(
+                    "UDP",
+                    transport_info,
+                    fields=("src_port", "dst_port", "service", "detail"),
+                )
+            )
+
+    return "\n".join(lines)
+
+
+def format_detail_section(
+    title: str, info: dict[str, Any], fields: Optional[tuple[str, ...]] = None
+) -> list[str]:
+    """Formata uma secção curta de detalhe por camada."""
+
+    if fields is None:
+        fields = tuple(info.keys())
+
+    lines = [f"", f"{title}:"]
+    for field_name in fields:
+        lines.append(f"  {field_name}: {format_detail_value(info.get(field_name))}")
+    return lines
+
+
+def format_detail_value(value: Any) -> str:
+    """Converte valores para texto sem esconder zeros, `False` ou strings vazias."""
+
+    if value is None or value == "":
+        return "n/d"
+    return str(value)
 
 
 def format_source_display(source_type: str, source_name: str) -> str:
