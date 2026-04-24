@@ -574,7 +574,8 @@ def summarize_packet(
 
     if "arp" in info:
         summary = add_link_layer_prefix(info, summarize_arp(info["arp"]))
-        return append_summary_annotations(summary, annotations)
+        summary = append_summary_annotations(summary, annotations)
+        return append_packet_length(summary, packet)
     if "ipv4" in info:
         summary = add_link_layer_prefix(info, summarize_ipv4(info["ipv4"]))
         return append_summary_annotations(summary, annotations)
@@ -603,6 +604,16 @@ def append_summary_annotations(
     if not annotations:
         return summary
     return " | ".join([summary, *annotations])
+
+
+def append_packet_length(summary: str, packet: Any) -> str:
+    """Acrescenta o tamanho capturado quando é possível medi-lo."""
+
+    try:
+        packet_length = len(packet)
+    except Exception:
+        return summary
+    return f"{summary} | {packet_length} bytes"
 
 
 def build_log_record(
