@@ -43,6 +43,13 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         help="caminho para um ficheiro .pcap para leitura offline",
     )
     parser.add_argument(
+        "-c",
+        "--count",
+        type=int,
+        default=0,
+        help="número máximo de pacotes a processar (0 significa sem limite)",
+    )
+    parser.add_argument(
         "--bpf",
         help="expressão BPF bruta, por exemplo: 'tcp port 80'",
     )
@@ -70,13 +77,6 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--write-pcap",
         help="ficheiro .pcap de saída para guardar a captura crua em modo live",
-    )
-    parser.add_argument(
-        "-c",
-        "--count",
-        type=int,
-        default=0,
-        help="número máximo de pacotes a processar (0 significa sem limite)",
     )
     parser.add_argument(
         "--timeout",
