@@ -50,7 +50,9 @@ def process_packet_tracking(
         dns_annotation = process_dns_tracking(packet, state, packet_number)
         tcp_event = process_tcp_event(packet, state)
         traceroute_event = process_traceroute_event(packet, state)
-        fragment_event = process_ipv4_fragment_event(packet, state)
+        fragment_event, fragment_annotation = process_ipv4_fragment_tracking(
+            packet, state, packet_number
+        )
 
         if arp_event:
             events.append(arp_event)
@@ -68,6 +70,8 @@ def process_packet_tracking(
             events.append(traceroute_event)
         if fragment_event:
             events.append(fragment_event)
+        if fragment_annotation:
+            annotations.append(fragment_annotation)
         return events, annotations
     except Exception:
         return [], []
@@ -293,13 +297,15 @@ def process_traceroute_event(packet: Any, state: TrackerState) -> Optional[str]:
     return None
 
 
-def process_ipv4_fragment_event(packet: Any, state: TrackerState) -> Optional[str]:
-    """Agrupa fragmentos IPv4 e emite um evento quando o conjunto parece completo."""
+def process_ipv4_fragment_tracking(
+    packet: Any, state: TrackerState, packet_number: Optional[int]
+) -> tuple[Optional[str], Optional[str]]:
+    """Agrupa fragmentos IPv4 e referencia fragmentos anteriores do conjunto."""
 
     from scapy.layers.inet import IP
 
     if IP not in packet:
-        return None
+        return None, None
 
     ip = packet[IP]
     src_ip = getattr(ip, "src", None)
@@ -316,11 +322,11 @@ def process_ipv4_fragment_event(packet: Any, state: TrackerState) -> Optional[st
         or protocol is None
         or (offset == 0 and not more_fragments)
     ):
-        return None
+        return None, None
 
     payload_length = get_ipv4_payload_length(ip)
     if payload_length <= 0:
-        return None
+        return None, None
 
     if len(state.ipv4_fragments) > 256:
         state.ipv4_fragments.clear()
@@ -332,25 +338,33 @@ def process_ipv4_fragment_event(packet: Any, state: TrackerState) -> Optional[st
             "ranges": set(),
             "expected_total": None,
             "completed": False,
+            "lines": [],
         },
     )
+    previous_lines = list(fragment_state["lines"])
+    annotation = format_fragment_set_reference(previous_lines)
+
+    if packet_number is not None and packet_number not in fragment_state["lines"]:
+        fragment_state["lines"].append(packet_number)
+
     fragment_state["ranges"].add((offset, offset + payload_length))
 
     if not more_fragments:
         fragment_state["expected_total"] = offset + payload_length
 
     if fragment_state["completed"] or fragment_state["expected_total"] is None:
-        return None
+        return None, annotation
 
     expected_total = fragment_state["expected_total"]
     if ranges_cover_total(fragment_state["ranges"], expected_total):
         fragment_state["completed"] = True
         return (
             f"[evento] Fragmentos IPv4 completos | {src_ip} -> {dst_ip} "
-            f"| id={identification}"
+            f"| id={identification}",
+            annotation,
         )
 
-    return None
+    return None, annotation
 
 
 def detect_tcp_termination(flags: str) -> Optional[str]:
@@ -369,6 +383,25 @@ def format_line_reference(label: str, packet_number: Optional[int]) -> Optional[
     if packet_number is None:
         return None
     return f"{label} {packet_number}"
+
+
+def format_fragment_set_reference(packet_numbers: list[int]) -> Optional[str]:
+    """Formata a lista crescente de linhas já observadas para fragmentos IPv4."""
+
+    if not packet_numbers:
+        return None
+    return f"fragmento do conjunto em {format_packet_number_list(packet_numbers)}"
+
+
+def format_packet_number_list(packet_numbers: list[int]) -> str:
+    """Enumera linhas como `211`, `211 e 212` ou `211, 212 e 213`."""
+
+    values = [str(packet_number) for packet_number in packet_numbers]
+    if len(values) == 1:
+        return values[0]
+    if len(values) == 2:
+        return " e ".join(values)
+    return f"{', '.join(values[:-1])} e {values[-1]}"
 
 
 def normalize_transport_protocol(value: Any) -> Optional[str]:

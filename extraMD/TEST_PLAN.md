@@ -206,6 +206,7 @@ Resultado esperado:
 - `--fragmented`: apenas pacotes IPv4 com `offset > 0` ou `MF` ativa;
 - `--ip-id 12345`: apenas pacotes IPv4 com `id=12345`;
 - `--mf-only`: apenas pacotes IPv4 com a flag `MF` ativa.
+- nos fragmentos posteriores do mesmo datagrama, o resumo pode incluir `fragmento do conjunto em ...` com as linhas anteriores já observadas.
 
 ## 6. BPF em modo live
 
@@ -509,6 +510,7 @@ Forma prática de preparar o teste: usar um PCAP gerado previamente com Scapy co
 Resultado esperado:
 
 - linhas IPv4 com campos como `id=...`, `offset=...` e `MF` quando aplicável;
+- fragmentos posteriores com referência explícita às linhas anteriores do mesmo conjunto, por exemplo `fragmento do conjunto em 211 e 212`;
 - evento como:
 
 ```text

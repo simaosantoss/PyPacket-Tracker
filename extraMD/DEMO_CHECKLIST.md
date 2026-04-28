@@ -313,6 +313,7 @@ python3 main.py -r captura.pcap -c 10
 - A deteção de possível traceroute usa uma heurística simples baseada em TTL crescente.
 - A fragmentação IPv4 é identificada por campos como `id`, `offset` e `MF`.
 - Os fragmentos são agrupados de forma lógica por datagrama, sem reconstrução profunda de payload.
+- Fragmentos posteriores podem mostrar `fragmento do conjunto em ...`, enumerando as linhas anteriores já observadas.
 - Quando o conjunto observado parece completo, surge o evento `Fragmentos IPv4 completos`.
 - É possível observar traceroute em UDP ou em ICMP com `traceroute -I`; a variante ICMP tende a ser mais limpa para demonstrar.
 - O service hinting é conservador e baseado apenas em portas conhecidas.

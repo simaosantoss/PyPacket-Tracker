@@ -207,7 +207,7 @@ O sniffer reconhece e resume:
 Exemplo de output:
 
 ```text
-[12] [live:en0] [14:02:10] Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
+[12] [live:en0] [14:02:10] Ethernet | IPv4 | UDP | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | DNS query | 72 bytes
 ```
 
 O resumo por pacote mantém-se curto na captura normal. No fim da execução, existe agora uma vista textual mais detalhada por pacote, acessível pelo número da linha, útil para inspeção e demonstração.
@@ -215,7 +215,7 @@ O resumo por pacote mantém-se curto na captura normal. No fim da execução, ex
 Quando o tracker consegue relacionar pacotes, o resumo pode incluir referências simples ao número da linha:
 
 ```text
-[13] [live:en0] [14:02:11] Ethernet | IPv4 | 8.8.8.8:53 -> 10.0.0.1:53000 | ttl=64 | UDP | DNS response | request in line 12
+[13] [live:en0] [14:02:11] Ethernet | IPv4 | UDP | 8.8.8.8:53 -> 10.0.0.1:53000 | ttl=64 | DNS response | 72 bytes | request in line 12
 ```
 
 ## Eventos detetados pelo tracker
@@ -255,6 +255,8 @@ Nestes casos, o próprio resumo do pacote de resposta pode indicar a linha do pe
 ```
 
 - Fragmentos IPv4 observados de forma suficiente para um datagrama que parece completo:
+
+Os fragmentos posteriores também referenciam as linhas anteriores do mesmo conjunto, por exemplo `fragmento do conjunto em 211 e 212`.
 
 ```text
 [evento] Fragmentos IPv4 completos | 192.168.1.10 -> 8.8.8.8 | id=12345

@@ -577,8 +577,11 @@ def summarize_packet(
         summary = append_summary_annotations(summary, annotations)
         return append_packet_length(summary, packet)
     if "ipv4" in info:
-        summary = add_link_layer_prefix(info, summarize_ipv4(info["ipv4"]))
-        return append_summary_annotations(summary, annotations)
+        inline_annotations, trailing_annotations = split_summary_annotations(annotations)
+        summary = add_link_layer_prefix(
+            info, summarize_ipv4(info["ipv4"], inline_annotations)
+        )
+        return append_summary_annotations(summary, trailing_annotations)
 
     ethernet_info = info.get("ethernet", {})
     ethertype = ethernet_info.get("ethertype")
@@ -604,6 +607,24 @@ def append_summary_annotations(
     if not annotations:
         return summary
     return " | ".join([summary, *annotations])
+
+
+def split_summary_annotations(
+    annotations: Optional[list[str]],
+) -> tuple[list[str], list[str]]:
+    """Separa anotações que devem aparecer antes do tamanho final do pacote."""
+
+    if not annotations:
+        return [], []
+
+    inline_annotations: list[str] = []
+    trailing_annotations: list[str] = []
+    for annotation in annotations:
+        if annotation.startswith("fragmento do conjunto em "):
+            inline_annotations.append(annotation)
+        else:
+            trailing_annotations.append(annotation)
+    return inline_annotations, trailing_annotations
 
 
 def append_packet_length(summary: str, packet: Any) -> str:
@@ -813,10 +834,17 @@ def summarize_arp(info: dict[str, Any]) -> str:
     return " | ".join(parts)
 
 
-def summarize_ipv4(info: dict[str, Any]) -> str:
+def summarize_ipv4(
+    info: dict[str, Any], inline_annotations: Optional[list[str]] = None
+) -> str:
     """Cria um resumo textual curto para IPv4."""
 
     parts = ["IPv4"]
+    transport = info.get("transport", {})
+    protocol_label = summarize_ipv4_protocol_label(info, transport)
+    if protocol_label:
+        parts.append(protocol_label)
+
     ip_flow = format_ipv4_flow(info)
     if ip_flow:
         parts.append(ip_flow)
@@ -829,43 +857,57 @@ def summarize_ipv4(info: dict[str, Any]) -> str:
         if info.get("more_fragments"):
             parts.append("MF")
 
-    transport = info.get("transport", {})
     if transport:
-        parts.extend(summarize_transport(transport))
-    elif info.get("protocol"):
-        parts.append(f"proto={info['protocol']}")
+        parts.extend(summarize_transport_details(transport))
+
+    if inline_annotations:
+        parts.extend(inline_annotations)
 
     if info.get("length") is not None:
         parts.append(f"{info['length']} bytes")
     return " | ".join(parts)
 
 
-def summarize_transport(info: dict[str, Any]) -> list[str]:
-    """Resume ICMP, TCP ou UDP sem analisar payload."""
+def summarize_ipv4_protocol_label(
+    info: dict[str, Any], transport: dict[str, Any]
+) -> Optional[str]:
+    """Devolve o rótulo L4 que aparece junto da pilha protocolar."""
+
+    protocol = transport.get("protocol") or info.get("protocol")
+
+    if protocol == "TCP":
+        tcp_label = "TCP"
+        if transport.get("flags"):
+            tcp_label = f"TCP [{transport['flags']}]"
+        return tcp_label
+
+    if protocol in {"ICMP", "UDP"}:
+        return protocol
+
+    return f"proto={protocol}" if protocol else None
+
+
+def summarize_transport_details(info: dict[str, Any]) -> list[str]:
+    """Resume detalhes úteis de ICMP, TCP ou UDP sem repetir o rótulo L4."""
 
     protocol = info.get("protocol")
 
     if protocol == "ICMP":
-        parts = ["ICMP"]
         if info.get("name"):
-            parts.append(info["name"])
-        elif info.get("type") is not None or info.get("code") is not None:
-            parts.append(f"type={info.get('type')}")
-            parts.append(f"code={info.get('code')}")
-        return parts
+            return [info["name"]]
+        if info.get("type") is not None or info.get("code") is not None:
+            return [f"type={info.get('type')}", f"code={info.get('code')}"]
+        return []
 
     if protocol == "TCP":
-        tcp_label = "TCP"
-        if info.get("flags"):
-            tcp_label = f"TCP [{info['flags']}]"
-        return append_service_hint([tcp_label], info)
+        return append_service_hint([], info)
 
     if protocol == "UDP":
         if info.get("detail"):
-            return ["UDP", info["detail"]]
-        return append_service_hint(["UDP"], info)
+            return [info["detail"]]
+        return append_service_hint([], info)
 
-    return [f"proto={protocol}"] if protocol else []
+    return []
 
 
 def append_service_hint(parts: list[str], info: dict[str, Any]) -> list[str]:

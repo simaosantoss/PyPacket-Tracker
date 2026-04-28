@@ -13,7 +13,7 @@ Isto garante que o Python executado com `sudo` usa o Scapy instalado na virtuale
 As linhas mostradas na consola incluem agora o número do pacote, o prefixo da fonte e um timestamp curto, por exemplo:
 
 ```text
-[12] [live:en0] [14:02:10] Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
+[12] [live:en0] [14:02:10] Ethernet | IPv4 | UDP | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | DNS query | 72 bytes
 [13] [offline:captura.pcap] [14:05:31] Ethernet | ARP | reply | 10.0.0.2 -> 10.0.0.1 | aa:bb:cc:dd:ee:ff -> ff:ff:ff:ff:ff:ff | request in line 12
 ```
 
@@ -272,16 +272,16 @@ python3 main.py -r captura.pcap --log-file captura.jsonl --log-format json
 Exemplos curtos de registos:
 
 ```text
-[12] [live:en0] [14:02:10] Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
+[12] [live:en0] [14:02:10] Ethernet | IPv4 | UDP | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | DNS query | 72 bytes
 ```
 
 ```csv
 packet_number,timestamp,source_type,source_name,protocol,src_ip,dst_ip,src_port,dst_port,ttl,length,ip_id,fragment_offset,more_fragments,service,summary
-12,2026-04-16T14:02:10,live,en0,UDP,10.0.0.1,8.8.8.8,53000,53,64,72,54321,0,False,DNS,Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes
+12,2026-04-16T14:02:10,live,en0,UDP,10.0.0.1,8.8.8.8,53000,53,64,72,54321,0,False,DNS,Ethernet | IPv4 | UDP | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | DNS query | 72 bytes
 ```
 
 ```json
-{"packet_number":12,"timestamp":"2026-04-16T14:02:10","timestamp_display":"14:02:10","source_type":"live","source_name":"en0","source_display":"live:en0","protocol":"UDP","src_ip":"10.0.0.1","dst_ip":"8.8.8.8","src_port":53000,"dst_port":53,"ttl":64,"length":72,"ip_id":54321,"fragment_offset":0,"more_fragments":false,"service":"DNS","summary":"Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query | 72 bytes"}
+{"packet_number":12,"timestamp":"2026-04-16T14:02:10","timestamp_display":"14:02:10","source_type":"live","source_name":"en0","source_display":"live:en0","protocol":"UDP","src_ip":"10.0.0.1","dst_ip":"8.8.8.8","src_port":53000,"dst_port":53,"ttl":64,"length":72,"ip_id":54321,"fragment_offset":0,"more_fragments":false,"service":"DNS","summary":"Ethernet | IPv4 | UDP | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | DNS query | 72 bytes"}
 ```
 
 Captura live com log CSV:
@@ -326,7 +326,7 @@ Detalhe do pacote 2
   tipo de fonte: offline
   fonte: captura.pcap
   timestamp: 2026-04-24T10:15:31
-  resumo: Ethernet | IPv4 | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | UDP | DNS query
+  resumo: Ethernet | IPv4 | UDP | 10.0.0.1:53000 -> 8.8.8.8:53 | ttl=64 | DNS query
 
 Ethernet:
   src_mac: aa:bb:cc:dd:ee:ff
@@ -363,19 +363,19 @@ ARP reply com referência ao request:
 ICMP echo-reply com referência ao echo-request:
 
 ```text
-[41] [live:en0] [11:22:15] Ethernet | IPv4 | 8.8.8.8 -> 10.0.0.1 | ttl=64 | ICMP | echo-reply | request in line 40
+[41] [live:en0] [11:22:15] Ethernet | IPv4 | ICMP | 8.8.8.8 -> 10.0.0.1 | ttl=64 | echo-reply | 84 bytes | request in line 40
 ```
 
 DNS response com referência à query:
 
 ```text
-[92] [live:en0] [11:22:20] Ethernet | IPv4 | 8.8.8.8:53 -> 10.0.0.1:53000 | ttl=64 | UDP | DNS response | request in line 91
+[92] [live:en0] [11:22:20] Ethernet | IPv4 | UDP | 8.8.8.8:53 -> 10.0.0.1:53000 | ttl=64 | DNS response | 72 bytes | request in line 91
 ```
 
 Quando não há relação conhecida, o formato continua limpo:
 
 ```text
-[93] [live:en0] [11:22:21] Ethernet | IPv4 | 10.0.0.1:12345 -> 1.1.1.1:443 | ttl=64 | TCP [SYN]
+[93] [live:en0] [11:22:21] Ethernet | IPv4 | TCP [SYN] | 10.0.0.1:12345 -> 1.1.1.1:443 | ttl=64 | 40 bytes
 ```
 
 ## Fragmentação IPv4
@@ -411,7 +411,9 @@ ping -s 4000 8.8.8.8
 Exemplo de output:
 
 ```text
-Ethernet | IPv4 | 10.0.0.1 -> 10.0.0.2 | ttl=64 | id=12345 | offset=1400 | MF | proto=UDP
+[211] [offline:fragmentado.pcap] [11:24:10] Ethernet | IPv4 | UDP | 10.0.0.1 -> 10.0.0.2 | ttl=64 | id=12345 | offset=0 | MF | 1500 bytes
+[212] [offline:fragmentado.pcap] [11:24:10] Ethernet | IPv4 | UDP | 10.0.0.1 -> 10.0.0.2 | ttl=64 | id=12345 | offset=1480 | MF | fragmento do conjunto em 211 | 1500 bytes
+[213] [offline:fragmentado.pcap] [11:24:10] Ethernet | IPv4 | UDP | 10.0.0.1 -> 10.0.0.2 | ttl=64 | id=12345 | offset=2960 | fragmento do conjunto em 211 e 212 | 68 bytes
 ```
 
 Exemplo de evento:
