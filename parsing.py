@@ -271,6 +271,7 @@ def extract_ipv4_info(packet: Any) -> dict[str, Any]:
     protocol = IP_PROTOCOL_NAMES.get(proto, str(proto) if proto is not None else None)
     transport_info = extract_transport_info(packet, protocol)
     identification = getattr(ipv4, "id", None)
+    header_length = get_ipv4_header_length_bytes(ipv4)
     fragment_offset = get_fragment_offset_bytes(ipv4)
     more_fragments = has_more_fragments(ipv4)
     is_fragmented = fragment_offset > 0 or more_fragments
@@ -280,6 +281,7 @@ def extract_ipv4_info(packet: Any) -> dict[str, Any]:
         "dst_ip": getattr(ipv4, "dst", None),
         "ttl": getattr(ipv4, "ttl", None),
         "length": getattr(ipv4, "len", None),
+        "header_length": header_length,
         "protocol": protocol,
         "ip_id": identification,
         "fragment_offset": fragment_offset,
@@ -403,6 +405,18 @@ def get_fragment_offset_bytes(ipv4: Any) -> int:
         return int(fragment_offset) * 8
     except (TypeError, ValueError):
         return 0
+
+
+def get_ipv4_header_length_bytes(ipv4: Any) -> Optional[int]:
+    """Converte o IHL IPv4 para bytes."""
+
+    header_length_words = getattr(ipv4, "ihl", None)
+    try:
+        if header_length_words is None:
+            return None
+        return int(header_length_words) * 4
+    except (TypeError, ValueError):
+        return None
 
 
 def has_more_fragments(ipv4: Any) -> bool:
@@ -715,6 +729,7 @@ def format_packet_detail(packet_entry: dict[str, Any]) -> str:
                     "dst_ip",
                     "ttl",
                     "length",
+                    "header_length",
                     "protocol",
                     "ip_id",
                     "fragment_offset",
@@ -760,7 +775,8 @@ def format_detail_section(
 
     lines = [f"", f"{title}:"]
     for field_name in fields:
-        lines.append(f"  {field_name}: {format_detail_value(info.get(field_name))}")
+        value = format_detail_field_value(field_name, info.get(field_name))
+        lines.append(f"  {field_name}: {value}")
     return lines
 
 
@@ -770,6 +786,14 @@ def format_detail_value(value: Any) -> str:
     if value is None or value == "":
         return "n/d"
     return str(value)
+
+
+def format_detail_field_value(field_name: str, value: Any) -> str:
+    """Formata valores especiais da vista detalhada."""
+
+    if field_name == "header_length" and value not in (None, ""):
+        return f"{value} bytes"
+    return format_detail_value(value)
 
 
 def format_source_display(source_type: str, source_name: str) -> str:

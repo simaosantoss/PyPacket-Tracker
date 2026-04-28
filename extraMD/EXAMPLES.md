@@ -338,6 +338,7 @@ IPv4:
   dst_ip: 8.8.8.8
   ttl: 64
   length: 72
+  header_length: 20 bytes
   protocol: UDP
   ip_id: 12345
   fragment_offset: 0
