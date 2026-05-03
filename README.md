@@ -360,19 +360,26 @@ python3 main.py -r captura.pcap --log-file captura.jsonl --log-format json
 
 1. Criar uma topologia simples com dois ou mais nós.
 2. Iniciar a sessão e abrir terminal no nó onde o sniffer vai correr.
-3. Identificar a interface do nó, por exemplo com:
+3. Preparar o terminal do nó:
+
+```bash
+cd /home/core/Desktop/RCTP2PL68
+export PYTHONPATH=/home/core/.local/lib/python3.10/site-packages:$PYTHONPATH
+```
+
+4. Identificar a interface do nó, por exemplo com:
 
 ```bash
 ip addr
 ```
 
-4. Correr o sniffer:
+5. Correr o sniffer:
 
 ```bash
-sudo python3 main.py -i eth0
+sudo env PYTHONPATH=$PYTHONPATH python3 main.py -i eth0
 ```
 
-5. Gerar tráfego entre nós:
+6. Gerar tráfego entre nós:
 
 ```bash
 ping 10.0.0.2
@@ -380,13 +387,20 @@ curl http://10.0.0.2
 traceroute -I 8.8.8.8
 ```
 
-6. Observar pacotes, eventos ICMP/TCP, possível traceroute e estatísticas finais.
+- Para testar ARP, usar dois nós ligados à mesma rede e fazer `ping 10.0.0.2`; antes do ICMP deve surgir a resolução ARP, se ainda não estiver em cache.
+- Para testar ICMP, usar `ping 10.0.0.2` e observar `echo-request` e `echo-reply`.
+- Para testar TCP, usar `curl http://10.0.0.2`, se existir um serviço HTTP no nó de destino.
+- Para testar traceroute, usar `traceroute -I 8.8.8.8` e observar TTL crescente e possível evento de traceroute.
+
+7. Observar pacotes, eventos ARP/ICMP/TCP, possível traceroute e estatísticas finais.
 
 Também é possível guardar logs:
 
 ```bash
-sudo python3 main.py -i eth0 --log-file core.csv --log-format csv
+sudo env PYTHONPATH=$PYTHONPATH python3 main.py -i eth0 --log-file core.csv --log-format csv
 ```
+
+No CORE podem surgir avisos como `sudo: unable to resolve host n1: Temporary failure in name resolution` ou `WARNING: Could not retrieve the OS's nameserver !`. Nos testes realizados, estes avisos não impediram a execução do sniffer nem os testes principais.
 
 Para demonstrar fragmentação IPv4, uma abordagem simples e fiável é abrir um PCAP preparado localmente com fragmentos, por exemplo `fragmentado.pcap`. Esse ficheiro não vem incluído no repositório e deve ser gerado ou preparado localmente pelo utilizador para os testes. Em modo live, também se pode tentar gerar tráfego grande com `ping`, quando o sistema, a rede e o MTU o permitirem.
 
