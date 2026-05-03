@@ -1177,7 +1177,7 @@ python3 main.py -r captura.pcap -c 10
 
 ## Roteiro de validação completa
 
-Antes da entrega ou demonstração, deve ser confirmada a capacidade de mostrar:
+Foi confirmada a capacidade de mostrar:
 
 - `python3 main.py --help`.
 - Erro ao correr sem `--interface` nem `--pcap`.
