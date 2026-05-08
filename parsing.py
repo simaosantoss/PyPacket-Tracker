@@ -868,6 +868,8 @@ def summarize_ipv4(
     protocol_label = summarize_ipv4_protocol_label(info, transport)
     if protocol_label:
         parts.append(protocol_label)
+    if transport:
+        parts.extend(summarize_application_details(transport))
 
     ip_flow = format_ipv4_flow(info)
     if ip_flow:
@@ -922,6 +924,17 @@ def summarize_transport_details(info: dict[str, Any]) -> list[str]:
         if info.get("type") is not None or info.get("code") is not None:
             return [f"type={info.get('type')}", f"code={info.get('code')}"]
         return []
+
+    if protocol in {"TCP", "UDP"}:
+        return []
+
+    return []
+
+
+def summarize_application_details(info: dict[str, Any]) -> list[str]:
+    """Resume protocolos de aplicação para aparecerem junto da pilha protocolar."""
+
+    protocol = info.get("protocol")
 
     if protocol == "TCP":
         return append_service_hint([], info)
