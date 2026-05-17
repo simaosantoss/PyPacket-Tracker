@@ -14,6 +14,8 @@ The assignment goal was to build a sniffer capable of capturing network packets,
 
 The original project statement is available in [`statement.pdf`](./statement.pdf). It is written in Portuguese, as it was the official assignment statement for the course.
 
+The submitted project report is available in [`project-report.pdf`](./project-report.pdf), and the assignment brief is available in [`assignment-brief.pdf`](./assignment-brief.pdf). Both documents are written in Portuguese.
+
 The full usage guide is available in [`USAGE.md`](./USAGE.md). It is written in Portuguese because this was an academic project developed and demonstrated in Portuguese.
 
 ## Main Features
@@ -65,6 +67,8 @@ tracking.py        Stateful tracking of protocol interactions and events
 logging_output.py  Structured output in txt, csv, and JSON Lines
 stats.py           Final traffic statistics
 USAGE.md           Complete usage and validation guide in Portuguese
+project-report.pdf Project report in Portuguese
+assignment-brief.pdf Assignment brief in Portuguese
 ```
 
 ## Requirements
