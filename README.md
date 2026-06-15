@@ -5,6 +5,8 @@
 ![Library](https://img.shields.io/badge/library-Scapy-orange)
 
 ---
+> 🏆 **Final Grade: 17/20**
+---
 
 ## 📌 About
 
